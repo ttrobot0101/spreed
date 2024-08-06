@@ -5,6 +5,7 @@
 const path = require('node:path')
 
 const { EsbuildPlugin } = require('esbuild-loader')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const webpack = require('webpack')
 const { mergeWithRules } = require('webpack-merge')
 
@@ -59,6 +60,11 @@ module.exports = mergeWithRules({
 
 	plugins: [
 		new webpack.DefinePlugin({ IS_DESKTOP: false }),
+		new MiniCssExtractPlugin({
+			filename: '../css/talk-[name].css',
+			chunkFilename: '../css/chunks/[id].chunk.css',
+			ignoreOrder: true,
+		}),
 	],
 
 	cache: true,
