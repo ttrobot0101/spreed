@@ -71,7 +71,7 @@ const upcomingEvents = computed(() => {
 		.map(event => {
 			const start = (!event.start || event.start * 1000 <= Date.now())
 				? t('spreed', 'Now')
-				: formatRelativeTime(event.start * 1000, { weekPrefix: 'weekday', weekSuffix: 'LT' })
+				: formatRelativeTime(event.start * 1000, { weekPrefix: 'weekday', weekSuffix: 'LT', omitSameYear: true })
 
 			const color = calendars.value[event.calendarUri]?.color ?? usernameToColor(event.calendarUri).color
 
