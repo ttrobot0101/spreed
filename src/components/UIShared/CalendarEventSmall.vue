@@ -21,7 +21,7 @@ const props = defineProps<{
 		<a class="calendar-event__item"
 			:class="{ 'calendar-event__item--thumb': !href }"
 			:href="href"
-			:title="t('spreed', 'Open Calendar')"
+			:title="href ? t('spreed', 'Open Calendar') : name ?? undefined"
 			:tabindex="0"
 			target="_blank">
 			<span class="calendar-event__badge" :style="{ backgroundColor: color }" />

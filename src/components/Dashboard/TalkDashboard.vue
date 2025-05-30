@@ -41,6 +41,7 @@ const canModerateSipDialOut = hasTalkFeature('local', 'sip-support-dialout')
 	&& getTalkConfig('local', 'call', 'sip-dialout-enabled')
 	&& getTalkConfig('local', 'call', 'can-enable-sip')
 const canStartConversations = getTalkConfig('local', 'conversations', 'can-create')
+const isCalendarEnabled = loadState('spreed', 'calendar_enabled', true)
 const isDirectionRTL = isRTL()
 
 const store = useStore()
@@ -267,7 +268,8 @@ function scrollEventCards({ direction }: { direction: 'backward' | 'forward' }) 
 			<span class="secondary_text">
 				{{ t('spreed', 'Schedule a meeting with a colleague from your calendar') }}
 			</span>
-			<NcButton class="talk-dashboard__calendar-button"
+			<NcButton v-if="isCalendarEnabled"
+				class="talk-dashboard__calendar-button"
 				type="secondary"
 				:href="generateUrl('apps/calendar')"
 				target="_blank">
