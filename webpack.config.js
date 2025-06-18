@@ -37,6 +37,7 @@ module.exports = mergeWithRules({
 		deck: path.join(__dirname, 'src', 'deck.js'),
 		maps: path.join(__dirname, 'src', 'maps.js'),
 		search: path.join(__dirname, 'src', 'search.js'),
+		icons: path.join(__dirname, 'src', 'icons.css'),
 	},
 
 	output: {
