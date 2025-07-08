@@ -20,6 +20,7 @@
 
 <script>
 import { getCurrentUser } from '@nextcloud/auth'
+import { showError } from '@nextcloud/dialogs'
 import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
@@ -599,9 +600,14 @@ export default {
 				 */
 				EventBus.emit('conversations-received', { singleConversation: response.data.ocs.data })
 			} catch (exception) {
-				console.info('Conversation received, but the current conversation is not in the list. Redirecting to /apps/spreed')
-				this.skipLeaveWarning = true
-				this.$router.push({ name: 'notfound' })
+				if (exception.response?.status === 404) {
+					console.info('Conversation received, but the current conversation is not in the list. Redirecting to /apps/spreed')
+					this.skipLeaveWarning = true
+					this.$router.push({ name: 'notfound' })
+				} else {
+					console.error('Error getting room data', exception)
+					showError(t('spreed', 'Error occurred when getting the conversation information'))
+				}
 			} finally {
 				this.isRefreshingCurrentConversation = false
 			}
