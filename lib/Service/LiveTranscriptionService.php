@@ -61,10 +61,10 @@ class LiveTranscriptionService {
 	 * @throws RuntimeException if the external app "live_transcription" is not
 	 *         available, or if the request failed.
 	 */
-	public function enable(Room $room, Participant $participant): void {
+	public function enable(Room $room, string $signalingSessionId): void {
 		$params = [
 			'roomToken' => $room->getToken(),
-			'sessionId' => $participant->getSession()->getSessionId(),
+			'sessionId' => $signalingSessionId,
 			'enable' => true,
 		];
 
@@ -75,10 +75,10 @@ class LiveTranscriptionService {
 	 * @throws RuntimeException if the external app "live_transcription" is not
 	 *         available, or if the request failed.
 	 */
-	public function disable(Room $room, Participant $participant): void {
+	public function disable(Room $room, string $signalingSessionId): void {
 		$params = [
 			'roomToken' => $room->getToken(),
-			'sessionId' => $participant->getSession()->getSessionId(),
+			'sessionId' => $signalingSessionId,
 			'enable' => false,
 		];
 
