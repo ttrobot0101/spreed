@@ -68,7 +68,7 @@ class LiveTranscriptionService {
 			'enable' => true,
 		];
 
-		$this->requestToExAppLiveTranscription('/transcribeCall', $params);
+		$this->requestToExAppLiveTranscription('/call/transcribe', $params);
 	}
 
 	/**
@@ -82,7 +82,7 @@ class LiveTranscriptionService {
 			'enable' => false,
 		];
 
-		$this->requestToExAppLiveTranscription('/transcribeCall', $params);
+		$this->requestToExAppLiveTranscription('/call/transcribe', $params);
 	}
 
 	/**
