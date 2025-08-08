@@ -491,9 +491,9 @@ class BackendNotifier {
 			],
 		];
 		if ($callerNumber === false) {
-			$dialoutData['dialout']['anonymous'] = true;
+			$dialoutData['dialout']['options']['anonymous'] = true;
 		} elseif (is_string($callerNumber)) {
-			$dialoutData['dialout']['caller'] = $callerNumber;
+			$dialoutData['dialout']['options']['caller'] = $callerNumber;
 		}
 		$response = $this->backendRequest($room, $dialoutData);
 
