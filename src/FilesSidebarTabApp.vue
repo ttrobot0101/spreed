@@ -23,7 +23,7 @@
 			</NcButton>
 		</div>
 		<template v-else>
-			<FilesSidebarCallView />
+			<FilesSidebarCallView v-if="isInFile && isInCall" />
 			<FilesSidebarChatView />
 		</template>
 	</div>
@@ -38,6 +38,7 @@ import { defineAsyncComponent, defineComponent, h } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import LoadingComponent from './components/LoadingComponent.vue'
 import { useGetToken } from './composables/useGetToken.ts'
+import { useIsInCall } from './composables/useIsInCall.js'
 import { useSessionIssueHandler } from './composables/useSessionIssueHandler.ts'
 import { EventBus } from './services/EventBus.ts'
 import { getFileConversation } from './services/filesIntegrationServices.ts'
@@ -70,6 +71,7 @@ export default {
 
 	setup() {
 		return {
+			isInCall: useIsInCall(),
 			isLeavingAfterSessionIssue: useSessionIssueHandler(),
 			actorStore: useActorStore(),
 			token: useGetToken(),
@@ -101,6 +103,20 @@ export default {
 
 		fileIdForToken() {
 			return this.tokenStore.fileIdForToken
+		},
+
+		/**
+		 * Returns whether the sidebar is opened in the file of the current
+		 * conversation or not.
+		 *
+		 * Note that false is returned too when the sidebar is closed, even if
+		 * the conversation is active in the current file.
+		 *
+		 * @return {boolean} true if the sidebar is opened in the file, false
+		 *          otherwise.
+		 */
+		isInFile() {
+			return this.fileId === this.fileIdForToken
 		},
 
 		isChatTheActiveTab() {
