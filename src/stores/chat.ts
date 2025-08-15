@@ -189,7 +189,11 @@ export const useChatStore = defineStore('chat', () => {
 		const newMessageIdsSet = new Set(messages.map((message) => message.id))
 
 		if (options?.threadId) {
-			// FIXME handle thread messages separately
+			if (!chatBlocks[token] && newMessageIdsSet.has(options.threadId)) {
+				chatBlocks[token] = [new Set<number>([options.threadId])]
+			}
+			processThreadBlocks(token, options.threadId, newMessageIdsSet, options)
+			return
 		}
 
 		if (!chatBlocks[token]) {
@@ -203,6 +207,30 @@ export const useChatStore = defineStore('chat', () => {
 		}
 
 		chatBlocks[token] = mergeAndSortChatBlocks(chatBlocks[token], newMessageIdsSet)
+
+		// FIXME populate thread blocks from chat blocks
+		// Otherwise thread messages need to be fetched again
+	}
+
+	/**
+	 * Populate chat blocks from given arrays of messages
+	 * If blocks already exist, try to extend them
+	 */
+	function processThreadBlocks(token: string, threadId: number, threadMessagesSet: Set<number>, options?: ProcessChatBlocksOptions): void {
+		if (!threadBlocks[token]) {
+			threadBlocks[token] = {}
+		}
+		if (!threadBlocks[token][threadId]) {
+			// If no blocks exist, create a new one with the first message. First in array will be considered main block
+			threadBlocks[token][threadId] = [threadMessagesSet]
+			return
+		}
+
+		if (options?.mergeBy) {
+			threadMessagesSet.add(options.mergeBy)
+		}
+
+		threadBlocks[token][threadId] = mergeAndSortChatBlocks(threadBlocks[token][threadId], threadMessagesSet)
 	}
 
 	/**
@@ -261,9 +289,21 @@ export const useChatStore = defineStore('chat', () => {
 	 */
 	function addMessageToChatBlocks(token: string, message: ChatMessage) {
 		if (!chatBlocks[token]) {
+			// FIXME only add thread first messages
 			chatBlocks[token] = [new Set<number>([message.id])]
 		} else {
 			chatBlocks[token][0].add(message.id)
+		}
+
+		if (message.threadId && message.isThread) {
+			if (!threadBlocks[token]) {
+				threadBlocks[token] = {}
+			}
+			if (!threadBlocks[token][message.threadId]) {
+				threadBlocks[token][message.threadId] = [new Set<number>([message.id])]
+			} else {
+				threadBlocks[token][message.threadId][0].add(message.id)
+			}
 		}
 	}
 
@@ -287,6 +327,28 @@ export const useChatStore = defineStore('chat', () => {
 
 		if (chatBlocks[token].length === 0) {
 			purgeChatStore(token)
+			return
+		}
+
+		const knownThreadIds = Object.keys(threadBlocks[token] || {})
+		const newThreadBlocks: IdMap<Set<number>[]> = {}
+		for (const threadId of knownThreadIds) {
+			newThreadBlocks[threadId] = threadBlocks[token][threadId].reduce<Set<number>[]>((acc, block) => {
+				messageIdArray.forEach((id) => block.delete(id))
+				if (block.size > 0) {
+					acc.push(block)
+				}
+				return acc
+			}, [])
+			if (newThreadBlocks[threadId].length === 0) {
+				delete newThreadBlocks[threadId]
+			}
+		}
+
+		if (Object.keys(newThreadBlocks).length === 0) {
+			delete threadBlocks[token]
+		} else {
+			threadBlocks[token] = newThreadBlocks
 		}
 	}
 
@@ -301,7 +363,6 @@ export const useChatStore = defineStore('chat', () => {
 		const deleteIndex = chatBlocks[token].findIndex((block) => Math.max(...block) < idToDelete)
 		if (deleteIndex === -1) {
 			// Not found, nothing to delete
-			return
 		} else if (deleteIndex === 0) {
 			// If first block is to be deleted, remove all blocks
 			purgeChatStore(token)
@@ -315,6 +376,33 @@ export const useChatStore = defineStore('chat', () => {
 					lastBlock.delete(id)
 				}
 			}
+		}
+
+		const knownThreadIds = Object.keys(threadBlocks[token] || {})
+		const newThreadBlocks: IdMap<Set<number>[]> = {}
+		for (const threadId of knownThreadIds) {
+			const deleteIndex = threadBlocks[token][threadId].findIndex((block) => Math.max(...block) < idToDelete)
+			if (deleteIndex === -1) {
+				// Not found, nothing to delete (copying as-is)
+				newThreadBlocks[threadId] = threadBlocks[token][threadId]
+			} else if (deleteIndex === 0) {
+				// If first block is to be deleted, remove all blocks (simply not copying)
+			} else {
+				// Remove all blocks with max id less than given id
+				newThreadBlocks[threadId] = threadBlocks[token][threadId].slice(0, deleteIndex)
+				const lastBlock = newThreadBlocks[threadId].at(-1)!
+				for (const id of lastBlock) {
+					if (id < idToDelete) {
+						lastBlock.delete(id)
+					}
+				}
+			}
+		}
+
+		if (Object.keys(newThreadBlocks).length === 0) {
+			delete threadBlocks[token]
+		} else {
+			threadBlocks[token] = newThreadBlocks
 		}
 	}
 
