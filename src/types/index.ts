@@ -144,8 +144,7 @@ export type StandaloneSignalingUpdateSession = {
 	virtual?: boolean
 }
 
-export type SignalingSessionPayload =
-	| InternalSignalingSession
+export type SignalingSessionPayload = InternalSignalingSession
 	| StandaloneSignalingJoinSession
 	| StandaloneSignalingUpdateSession
 
@@ -271,6 +270,8 @@ export type ThreadAttendee = components['schemas']['ThreadAttendee']
 export type ThreadInfo = components['schemas']['ThreadInfo']
 export type getRecentThreadsParams = operations['thread-get-recent-active-threads']['parameters']['query']
 export type getRecentThreadsResponse = ApiResponse<operations['thread-get-recent-active-threads']['responses'][200]['content']['application/json']>
+export type getSubscribedThreadsParams = operations['thread-get-subscribed-threads']['parameters']['query']
+export type getSubscribedThreadsResponse = ApiResponse<operations['thread-get-subscribed-threads']['responses'][200]['content']['application/json']>
 export type getThreadResponse = ApiResponse<operations['thread-get-thread']['responses'][200]['content']['application/json']>
 export type setThreadNotificationLevelParams = operations['thread-set-notification-level']['requestBody']['content']['application/json']
 export type setThreadNotificationLevelResponse = ApiResponse<operations['thread-set-notification-level']['responses'][200]['content']['application/json']>
@@ -457,8 +458,7 @@ export type IUserData = {
 // SIP call message payload
 // TODO unify this type
 // hint: check TYPE_ENCRYPTION* in "encryption.js"
-export type CallSIPSendCallMessagePayload =
-	| { type: 'control' | 'hangup' }
+export type CallSIPSendCallMessagePayload = { type: 'control' | 'hangup' }
 	| { type: 'dtmf', digit: string }
 	| { type: 'mute', audio: number }
 
