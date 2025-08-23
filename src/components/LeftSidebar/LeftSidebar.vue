@@ -140,7 +140,7 @@
 				<NcAppNavigationItem
 					class="navigation-item"
 					:to="{ name: 'root' }"
-					:name="t('spreed', 'Talk home')"
+					:name="HOME_BUTTON_LABEL"
 					@click="refreshTalkDashboard">
 					<template #icon>
 						<IconHomeOutline :size="20" />
@@ -149,7 +149,7 @@
 				<NcAppNavigationItem v-if="!isSearching"
 					class="navigation-item"
 					:name="showThreadsList ? t('spreed', 'Back to conversations') : t('spreed', 'Followed threads')"
-					@click="showThreadsList = !showThreadsList">
+					@click.prevent="showThreadsList = !showThreadsList">
 					<template #icon>
 						<IconArrowLeft v-if="showThreadsList" class="bidirectional-icon" :size="20" />
 						<IconForumOutline v-else :size="20" />
@@ -158,7 +158,7 @@
 				<NcAppNavigationItem v-if="pendingInvitationsCount"
 					class="navigation-item"
 					:name="t('spreed', 'Pending invitations')"
-					@click="showInvitationHandler">
+					@click.prevent="showInvitationHandler">
 					<template #icon>
 						<IconAccountMultiplePlusOutline :size="20" />
 					</template>
@@ -339,6 +339,7 @@ const canModerateSipDialOut = hasTalkFeature('local', 'sip-support-dialout')
 	&& getTalkConfig('local', 'call', 'can-enable-sip')
 const canNoteToSelf = hasTalkFeature('local', 'note-to-self')
 const supportsArchive = hasTalkFeature('local', 'archived-conversations-v2')
+const HOME_BUTTON_LABEL = t('spreed', 'Home') // TRANSLATORS: The main home view
 const FILTER_LABELS = {
 	unread: t('spreed', 'Unread'),
 	mentions: t('spreed', 'Mentions'),
@@ -422,6 +423,7 @@ export default {
 			showArchived,
 			showThreadsList,
 			settingsStore,
+			HOME_BUTTON_LABEL,
 			FILTER_LABELS,
 			actorStore: useActorStore(),
 			chatExtrasStore: useChatExtrasStore(),
@@ -957,9 +959,6 @@ export default {
 			}
 			if (from.name === 'conversation') {
 				this.$store.dispatch('leaveConversation', { token: from.params.token })
-				if (to.name !== 'conversation') {
-					this.tokenStore.updateToken('')
-				}
 			}
 			if (to.name === 'conversation') {
 				this.abortSearch()
@@ -975,7 +974,7 @@ export default {
 			}
 		},
 
-		refreshTalkDashboard() {
+		refreshTalkDashboard(event) {
 			// Throttle click and keyboard events
 			if (actualizeDataTimeout) {
 				return
@@ -985,6 +984,7 @@ export default {
 			}, 5_000)
 
 			if (this.$route.name === 'root') {
+				event.preventDefault()
 				EventBus.emit('refresh-talk-dashboard')
 			}
 		},

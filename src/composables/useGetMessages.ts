@@ -223,7 +223,6 @@ export function useGetMessagesProvider() {
 		}
 
 		const focusMessageId = getMessageIdFromHash(to.hash)
-		const threadId = +(to.query.threadId ?? 0)
 		if (from.hash !== to.hash && focusMessageId !== null) {
 			// the hash changed, need to focus/highlight another message
 			contextMessageId.value = focusMessageId
@@ -235,7 +234,7 @@ export function useGetMessagesProvider() {
 			contextMessageId.value = conversationLastMessageId.value
 		}
 
-		await checkContextAndFocusMessage(to.params.token, contextMessageId.value, threadId)
+		await checkContextAndFocusMessage(to.params.token, contextMessageId.value, contextThreadId.value)
 	}
 
 	/**
@@ -255,7 +254,7 @@ export function useGetMessagesProvider() {
 		// need some delay (next tick is too short) to be able to run
 		// after the browser's native "scroll to anchor" from the hash
 		window.setTimeout(() => {
-			EventBus.emit('focus-message', contextMessageId.value)
+			EventBus.emit('focus-message', messageId)
 		}, 2)
 	}
 
@@ -301,6 +300,8 @@ export function useGetMessagesProvider() {
 				console.debug(exception)
 				return
 			}
+		} else {
+			await checkContextAndFocusMessage(token, contextMessageId.value, contextThreadId.value)
 		}
 
 		isInitialisingMessages.value = false
