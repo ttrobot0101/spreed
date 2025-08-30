@@ -61,22 +61,22 @@
 					close-after-click
 					@click="toggleFavoriteConversation">
 					<template #icon>
-						<IconStar :size="16" :fill-color="!item.isFavorite ? '#FFCC00' : undefined" />
+						<IconStar :size="20" :fill-color="!item.isFavorite ? '#FFCC00' : undefined" />
 					</template>
 					{{ labelFavorite }}
 				</NcActionButton>
 
 				<NcActionButton key="copy-link" @click.stop="handleCopyLink">
 					<template #icon>
-						<IconContentCopy :size="16" />
+						<IconContentCopy :size="20" />
 					</template>
 					{{ t('spreed', 'Copy link') }}
 				</NcActionButton>
 
 				<NcActionButton key="toggle-read" close-after-click @click="toggleReadConversation">
 					<template #icon>
-						<IconEyeOutline v-if="item.unreadMessages" :size="16" />
-						<IconEyeOffOutline v-else :size="16" />
+						<IconEyeOutline v-if="item.unreadMessages" :size="20" />
+						<IconEyeOffOutline v-else :size="20" />
 					</template>
 					{{ labelRead }}
 				</NcActionButton>
@@ -85,14 +85,14 @@
 					is-menu
 					@click="submenu = 'notifications'">
 					<template #icon>
-						<IconBellOutline :size="16" />
+						<IconBellOutline :size="20" />
 					</template>
 					{{ t('spreed', 'Notifications') }}
 				</NcActionButton>
 
 				<NcActionButton key="show-settings" close-after-click @click="showConversationSettings">
 					<template #icon>
-						<IconCogOutline :size="16" />
+						<IconCogOutline :size="20" />
 					</template>
 					{{ t('spreed', 'Conversation settings') }}
 				</NcActionButton>
@@ -102,8 +102,8 @@
 					close-after-click
 					@click="toggleArchiveConversation">
 					<template #icon>
-						<IconArchiveOutline v-if="!item.isArchived" :size="16" />
-						<IconArchiveOffOutline v-else :size="16" />
+						<IconArchiveOutline v-if="!item.isArchived" :size="20" />
+						<IconArchiveOffOutline v-else :size="20" />
 					</template>
 					{{ labelArchive }}
 				</NcActionButton>
@@ -113,7 +113,7 @@
 					close-after-click
 					@click="isLeaveDialogOpen = true">
 					<template #icon>
-						<IconExitToApp :size="16" />
+						<IconExitToApp :size="20" />
 					</template>
 					{{ t('spreed', 'Leave conversation') }}
 				</NcActionButton>
@@ -124,7 +124,7 @@
 					class="critical"
 					@click="isDeleteDialogOpen = true">
 					<template #icon>
-						<IconTrashCanOutline :size="16" />
+						<IconTrashCanOutline :size="20" />
 					</template>
 					{{ t('spreed', 'Delete conversation') }}
 				</NcActionButton>
@@ -135,7 +135,7 @@
 					:aria-label="t('spreed', 'Back')"
 					@click.stop="submenu = null">
 					<template #icon>
-						<IconArrowLeft class="bidirectional-icon" :size="16" />
+						<IconArrowLeft class="bidirectional-icon" :size="20" />
 					</template>
 					{{ t('spreed', 'Back') }}
 				</NcActionButton>
@@ -149,7 +149,7 @@
 					type="radio"
 					@click="setNotificationLevel(level.value)">
 					<template #icon>
-						<component :is="notificationLevelIcon(level.value)" :size="16" />
+						<component :is="level.icon" :size="20" />
 					</template>
 					{{ level.label }}
 				</NcActionButton>
@@ -163,7 +163,7 @@
 						:model-value="notificationCalls"
 						@click="setNotificationCalls(!notificationCalls)">
 						<template #icon>
-							<IconPhoneRingOutline :size="16" />
+							<IconPhoneRingOutline :size="20" />
 						</template>
 						{{ t('spreed', 'Notify about calls') }}
 					</NcActionButton>
@@ -180,7 +180,7 @@
 						:model-value="item.isImportant"
 						@click="toggleImportant(!item.isImportant)">
 						<template #icon>
-							<IconMessageAlertOutline :size="16" />
+							<IconMessageAlertOutline :size="20" />
 						</template>
 						{{ t('spreed', 'Important conversation') }}
 					</NcActionButton>
@@ -192,7 +192,7 @@
 						:model-value="item.isSensitive"
 						@click="toggleSensitive(!item.isSensitive)">
 						<template #icon>
-							<IconShieldLockOutline :size="16" />
+							<IconShieldLockOutline :size="20" />
 						</template>
 						{{ t('spreed', 'Sensitive conversation') }}
 					</NcActionButton>
@@ -203,14 +203,14 @@
 		<template v-else-if="item.token" #actions>
 			<NcActionButton key="join-conversation" close-after-click @click="onActionClick">
 				<template #icon>
-					<IconArrowRight class="bidirectional-icon" :size="16" />
+					<IconArrowRight class="bidirectional-icon" :size="20" />
 				</template>
 				{{ t('spreed', 'Join conversation') }}
 			</NcActionButton>
 
 			<NcActionButton key="copy-link" @click.stop="handleCopyLink">
 				<template #icon>
-					<IconContentCopy :size="16" />
+					<IconContentCopy :size="20" />
 				</template>
 				{{ t('spreed', 'Copy link') }}
 			</NcActionButton>
@@ -262,20 +262,20 @@ import { showError } from '@nextcloud/dialogs'
 import { emit } from '@nextcloud/event-bus'
 import { t } from '@nextcloud/l10n'
 import { useIsDarkTheme } from '@nextcloud/vue/composables/useIsDarkTheme'
-import { h, ref, toRefs } from 'vue'
+import { ref, toRefs } from 'vue'
 import { isNavigationFailure, NavigationFailureType } from 'vue-router'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
-import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcListItem from '@nextcloud/vue/components/NcListItem'
-import IconAccountOutline from 'vue-material-design-icons/AccountOutline.vue'
 import IconArchiveOffOutline from 'vue-material-design-icons/ArchiveOffOutline.vue'
 import IconArchiveOutline from 'vue-material-design-icons/ArchiveOutline.vue'
 import IconArrowLeft from 'vue-material-design-icons/ArrowLeft.vue'
 import IconArrowRight from 'vue-material-design-icons/ArrowRight.vue'
+import IconBellOffOutline from 'vue-material-design-icons/BellOffOutline.vue'
 import IconBellOutline from 'vue-material-design-icons/BellOutline.vue'
+import IconBellRingOutline from 'vue-material-design-icons/BellRingOutline.vue'
 import IconCogOutline from 'vue-material-design-icons/CogOutline.vue'
 import IconContentCopy from 'vue-material-design-icons/ContentCopy.vue'
 import IconExitToApp from 'vue-material-design-icons/ExitToApp.vue'
@@ -288,8 +288,6 @@ import IconStar from 'vue-material-design-icons/Star.vue' // Filled for better i
 import IconTrashCanOutline from 'vue-material-design-icons/TrashCanOutline.vue'
 import IconVideo from 'vue-material-design-icons/Video.vue' // Filled for better indication
 import ConversationIcon from './../../ConversationIcon.vue'
-import IconVolumeHighOutline from '../../../../img/material-icons/volume-high-outline.svg?raw'
-import IconVolumeOffOutline from '../../../../img/material-icons/volume-off-outline.svg?raw'
 import { useConversationInfo } from '../../../composables/useConversationInfo.ts'
 import { AVATAR, CONVERSATION, PARTICIPANT } from '../../../constants.ts'
 import { hasTalkFeature } from '../../../services/CapabilitiesManager.ts'
@@ -300,9 +298,9 @@ const supportImportantConversations = hasTalkFeature('local', 'important-convers
 const supportSensitiveConversations = hasTalkFeature('local', 'sensitive-conversations')
 
 const notificationLevels = [
-	{ value: PARTICIPANT.NOTIFY.ALWAYS, label: t('spreed', 'All messages') },
-	{ value: PARTICIPANT.NOTIFY.MENTION, label: t('spreed', '@-mentions only') },
-	{ value: PARTICIPANT.NOTIFY.NEVER, label: t('spreed', 'Off') },
+	{ value: PARTICIPANT.NOTIFY.ALWAYS, label: t('spreed', 'All messages'), icon: IconBellRingOutline },
+	{ value: PARTICIPANT.NOTIFY.MENTION, label: t('spreed', '@-mentions only'), icon: IconBellOutline },
+	{ value: PARTICIPANT.NOTIFY.NEVER, label: t('spreed', 'Off'), icon: IconBellOffOutline },
 ]
 
 export default {
@@ -310,7 +308,6 @@ export default {
 
 	components: {
 		ConversationIcon,
-		IconAccountOutline,
 		IconArchiveOutline,
 		IconArchiveOffOutline,
 		IconArrowLeft,
@@ -331,7 +328,6 @@ export default {
 		NcActionSeparator,
 		NcButton,
 		NcDialog,
-		NcIconSvgWrapper,
 		NcListItem,
 	},
 
@@ -537,18 +533,6 @@ export default {
 		async toggleArchiveConversation() {
 			this.isLeaveDialogOpen = false
 			this.$store.dispatch('toggleArchive', this.item)
-		},
-
-		notificationLevelIcon(value) {
-			switch (value) {
-				case PARTICIPANT.NOTIFY.ALWAYS:
-					return h(NcIconSvgWrapper, { svg: IconVolumeHighOutline })
-				case PARTICIPANT.NOTIFY.MENTION:
-					return IconAccountOutline
-				case PARTICIPANT.NOTIFY.NEVER:
-				default:
-					return h(NcIconSvgWrapper, { svg: IconVolumeOffOutline })
-			}
 		},
 
 		/**

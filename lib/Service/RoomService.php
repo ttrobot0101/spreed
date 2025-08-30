@@ -46,6 +46,7 @@ use OCA\Talk\Exceptions\RoomProperty\RecordingConsentException;
 use OCA\Talk\Exceptions\RoomProperty\SipConfigurationException;
 use OCA\Talk\Exceptions\RoomProperty\TypeException;
 use OCA\Talk\Manager;
+use OCA\Talk\Model\Attachment;
 use OCA\Talk\Model\Attendee;
 use OCA\Talk\Model\BreakoutRoom;
 use OCA\Talk\Participant;
@@ -848,6 +849,39 @@ class RoomService {
 		$this->dispatcher->dispatchTyped($event);
 	}
 
+	/**
+	 * Set the ID of the language to use for live transcriptions in the given
+	 * room.
+	 *
+	 * This method is not meant to be directly used; use
+	 * "LiveTranscriptionService::setLanguage" instead, which only sets the
+	 * language in the room if the external app is available and the language is
+	 * valid.
+	 *
+	 * @param Room $room
+	 * @param string $newState ID of the language to set
+	 */
+	public function setLiveTranscriptionLanguageId(Room $room, string $newState): void {
+		$oldState = $room->getLiveTranscriptionLanguageId();
+		if ($newState === $oldState) {
+			return;
+		}
+
+		$event = new BeforeRoomModifiedEvent($room, ARoomModifiedEvent::PROPERTY_LIVE_TRANSCRIPTION_LANGUAGE_ID, $newState, $oldState);
+		$this->dispatcher->dispatchTyped($event);
+
+		$update = $this->db->getQueryBuilder();
+		$update->update('talk_rooms')
+			->set('transcription_language', $update->createNamedParameter($newState, IQueryBuilder::PARAM_STR))
+			->where($update->expr()->eq('id', $update->createNamedParameter($room->getId(), IQueryBuilder::PARAM_INT)));
+		$update->executeStatement();
+
+		$room->setLiveTranscriptionLanguageId($newState);
+
+		$event = new RoomModifiedEvent($room, ARoomModifiedEvent::PROPERTY_LIVE_TRANSCRIPTION_LANGUAGE_ID, $newState, $oldState);
+		$this->dispatcher->dispatchTyped($event);
+	}
+
 	public function setAssignedSignalingServer(Room $room, ?int $signalingServer): bool {
 		$update = $this->db->getQueryBuilder();
 		$update->update('talk_rooms')
@@ -1201,6 +1235,14 @@ class RoomService {
 		$update->executeStatement();
 
 		$room->setFederatedParticipants($hasFederation);
+	}
+
+	public function setHasAttachments(Room $room): void {
+		$update = $this->db->getQueryBuilder();
+		$update->update('talk_rooms')
+			->set('has_attachments', $update->createNamedParameter(Attachment::ATTACHMENTS_ATLEAST_ONE, IQueryBuilder::PARAM_INT))
+			->where($update->expr()->eq('id', $update->createNamedParameter($room->getId(), IQueryBuilder::PARAM_INT)));
+		$update->executeStatement();
 	}
 
 	public function setLastActivity(Room $room, \DateTime $now): void {
