@@ -18,6 +18,7 @@ import IconFullscreen from 'vue-material-design-icons/Fullscreen.vue'
 import IconFullscreenExit from 'vue-material-design-icons/FullscreenExit.vue'
 import IconHandBackLeft from 'vue-material-design-icons/HandBackLeft.vue' // Filled for better indication
 import IconHandBackLeftOutline from 'vue-material-design-icons/HandBackLeftOutline.vue'
+import IconSubtitles from 'vue-material-design-icons/Subtitles.vue'
 import IconSubtitlesOutline from 'vue-material-design-icons/SubtitlesOutline.vue'
 import IconViewGalleryOutline from 'vue-material-design-icons/ViewGalleryOutline.vue'
 import IconViewGridOutline from 'vue-material-design-icons/ViewGridOutline.vue'
@@ -236,7 +237,8 @@ useHotKey('r', toggleHandRaised)
 	<div class="bottom-bar" data-theme-dark>
 		<div v-if="!isSidebar" class="bottom-bar-call-controls">
 			<!-- Fullscreen -->
-			<NcButton :aria-label="fullscreenLabel"
+			<NcButton
+				:aria-label="fullscreenLabel"
 				:variant="isFullscreen ? 'secondary' : 'tertiary'"
 				:title="fullscreenLabel"
 				@click="toggleFullscreen">
@@ -246,7 +248,8 @@ useHotKey('r', toggleHandRaised)
 				</template>
 			</NcButton>
 			<!-- Call layout switcher -->
-			<NcButton v-if="showCallLayoutSwitch"
+			<NcButton
+				v-if="showCallLayoutSwitch"
 				variant="tertiary"
 				:aria-label="changeViewLabel"
 				:title="changeViewLabel"
@@ -267,26 +270,34 @@ useHotKey('r', toggleHandRaised)
 				:local-call-participant-model="localCallParticipantModel" />
 
 			<!-- Reactions menu -->
-			<ReactionMenu v-if="hasReactionSupport"
+			<ReactionMenu
+				v-if="hasReactionSupport"
 				:token="token"
 				:supported-reactions="supportedReactions"
 				:local-call-participant-model="localCallParticipantModel" />
 
-			<NcButton v-if="isLiveTranscriptionSupported"
+			<NcButton
+				v-if="isLiveTranscriptionSupported"
 				:title="liveTranscriptionButtonLabel"
 				:aria-label="liveTranscriptionButtonLabel"
 				:variant="callViewStore.isLiveTranscriptionEnabled ? 'secondary' : 'tertiary'"
 				:disabled="isLiveTranscriptionLoading"
 				@click="toggleLiveTranscription">
 				<template #icon>
-					<IconSubtitlesOutline v-if="!isLiveTranscriptionLoading"
+					<NcLoadingIcon
+						v-if="isLiveTranscriptionLoading"
 						:size="20" />
-					<NcLoadingIcon v-else
+					<IconSubtitles
+						v-else-if="callViewStore.isLiveTranscriptionEnabled"
+						:size="20" />
+					<IconSubtitlesOutline
+						v-else
 						:size="20" />
 				</template>
 			</NcButton>
 
-			<NcButton v-if="!isSidebar"
+			<NcButton
+				v-if="!isSidebar"
 				:title="raiseHandButtonLabel"
 				:aria-label="raiseHandButtonLabel"
 				:variant="isHandRaised ? 'secondary' : 'tertiary'"

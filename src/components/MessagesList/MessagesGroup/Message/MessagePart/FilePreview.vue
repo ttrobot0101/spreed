@@ -5,7 +5,8 @@
 -->
 
 <template>
-	<component :is="filePreviewElement"
+	<component
+		:is="filePreviewElement"
 		:tabindex="wrapperTabIndex"
 		class="file-preview"
 		:class="{
@@ -17,11 +18,13 @@
 		v-bind="filePreviewBinding"
 		@click.exact="handleClick"
 		@keydown.enter="handleClick">
-		<span :title="file.name"
+		<span
+			:title="file.name"
 			class="image-container"
 			:class="{ playable: isPlayable }"
 			:style="imageContainerStyle">
-			<img class="file-preview__image"
+			<img
+				class="file-preview__image"
 				:class="previewImageClass"
 				:alt="file.name"
 				:src="failed ? defaultIconUrl : previewUrl"
@@ -29,16 +32,19 @@
 				@error="onError">
 			<template v-if="!isLoading || fallbackLocalUrl">
 				<span v-if="isPlayable && !smallPreview" class="play-video-button">
-					<IconPlayCircleOutline :size="48"
+					<IconPlayCircleOutline
+						:size="48"
 						fill-color="#ffffff" />
 				</span>
-				<NcProgressBar v-if="showUploadProgress"
+				<NcProgressBar
+					v-if="showUploadProgress"
 					class="file-preview__progress"
 					type="circular"
 					:value="uploadProgress" />
 			</template>
 			<TransitionWrapper v-else-if="isLoading" name="fade">
-				<canvas v-if="file.blurhash"
+				<canvas
+					v-if="file.blurhash"
 					ref="blurCanvas"
 					width="32"
 					height="32"
@@ -47,12 +53,13 @@
 			</TransitionWrapper>
 		</span>
 
-		<NcButton v-if="isUploadEditor"
+		<NcButton
+			v-if="isUploadEditor"
 			class="remove-file"
 			tabindex="1"
 			variant="primary"
 			:aria-label="removeAriaLabel"
-			@click="$emit('removeFile', file.id)">
+			@click.stop.prevent="handleClick">
 			<template #icon>
 				<IconClose />
 			</template>
@@ -458,7 +465,7 @@ export default {
 
 	mounted() {
 		if (this.isTemporaryUpload && !this.isUploadEditor) {
-			// this.uploadManager = getUploader()
+			this.uploadManager = getUploader()
 		}
 
 		if (this.file.blurhash && this.file.width && this.file.height) {
