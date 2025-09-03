@@ -181,10 +181,15 @@ class ChatController extends AEnvironmentAwareOCSController {
 			return new DataResponse(null, Http::STATUS_CREATED, $headers);
 		}
 
-		$isThread = $this->threadService->validateThread($this->room->getId(), (int)$comment->getTopmostParentId());
-		$data = $chatMessage->toArray($this->getResponseFormat(), $isThread);
+		try {
+			$threadId = (int)$comment->getTopmostParentId() ?: (int)$comment->getId();
+			$thread = $this->threadService->findByThreadId($this->room->getId(), $threadId);
+		} catch (DoesNotExistException) {
+			$thread = null;
+		}
+		$data = $chatMessage->toArray($this->getResponseFormat(), $thread);
 		if ($parentMessage instanceof Message) {
-			$data['parent'] = $parentMessage->toArray($this->getResponseFormat(), $isThread);
+			$data['parent'] = $parentMessage->toArray($this->getResponseFormat(), $thread);
 		}
 
 		$headers = [];
@@ -678,8 +683,8 @@ class ChatController extends AEnvironmentAwareOCSController {
 		}
 
 		$this->sharePreloader->preloadShares($comments);
-		$potentialThreadIds = array_map(static fn (IComment $comment) => (int)$comment->getTopmostParentId(), $comments);
-		$threadMap = array_flip($this->threadService->validateThreadIds($this->room->getId(), $potentialThreadIds));
+		$potentialThreadIds = array_map(static fn (IComment $comment) => (int)$comment->getTopmostParentId() ?: (int)$comment->getId(), $comments);
+		$threads = $this->threadService->findByThreadIds($this->room->getId(), $potentialThreadIds);
 
 		$i = 0;
 		$now = $this->timeFactory->getDateTime();
@@ -705,7 +710,7 @@ class ChatController extends AEnvironmentAwareOCSController {
 			}
 
 			$threadId = (int)$comment->getTopmostParentId() ?: $id;
-			$messages[] = $message->toArray($this->getResponseFormat(), isset($threadMap[$threadId]));
+			$messages[] = $message->toArray($this->getResponseFormat(), $threads[$threadId] ?? null);
 			$commentIdToIndex[$id] = $i;
 			$i++;
 		}
@@ -742,7 +747,7 @@ class ChatController extends AEnvironmentAwareOCSController {
 
 					if ($message->getVisibility()) {
 						$threadId = (int)$comment->getTopmostParentId() ?: $parentId;
-						$loadedParents[$parentId] = $message->toArray($this->getResponseFormat(), isset($threadMap[$threadId]));
+						$loadedParents[$parentId] = $message->toArray($this->getResponseFormat(), $threads[$threadId] ?? null);
 						$messages[$commentKey]['parent'] = $loadedParents[$parentId];
 						continue;
 					}
@@ -979,8 +984,15 @@ class ChatController extends AEnvironmentAwareOCSController {
 		$message = $this->messageParser->createMessage($this->room, $this->participant, $comment, $this->l);
 		$this->messageParser->parseMessage($message);
 
-		$data = $systemMessage->toArray($this->getResponseFormat());
-		$data['parent'] = $message->toArray($this->getResponseFormat());
+		try {
+			$threadId = (int)$comment->getTopmostParentId() ?: (int)$comment->getId();
+			$thread = $this->threadService->findByThreadId($this->room->getId(), $threadId);
+		} catch (DoesNotExistException) {
+			$thread = null;
+		}
+
+		$data = $systemMessage->toArray($this->getResponseFormat(), $thread);
+		$data['parent'] = $message->toArray($this->getResponseFormat(), $thread);
 
 		$hasBotOrBridge = !empty($this->botService->getBotsForToken($this->room->getToken(), Bot::FEATURE_WEBHOOK));
 		if (!$hasBotOrBridge) {
@@ -1096,8 +1108,15 @@ class ChatController extends AEnvironmentAwareOCSController {
 		$parseMessage = $this->messageParser->createMessage($this->room, $this->participant, $comment, $this->l);
 		$this->messageParser->parseMessage($parseMessage);
 
-		$data = $systemMessage->toArray($this->getResponseFormat());
-		$data['parent'] = $parseMessage->toArray($this->getResponseFormat());
+		try {
+			$threadId = (int)$comment->getTopmostParentId() ?: (int)$comment->getId();
+			$thread = $this->threadService->findByThreadId($this->room->getId(), $threadId);
+		} catch (DoesNotExistException) {
+			$thread = null;
+		}
+
+		$data = $systemMessage->toArray($this->getResponseFormat(), $thread);
+		$data['parent'] = $parseMessage->toArray($this->getResponseFormat(), $thread);
 
 		$hasBotOrBridge = !empty($this->botService->getBotsForToken($this->room->getToken(), Bot::FEATURE_WEBHOOK));
 		if (!$hasBotOrBridge) {
@@ -1299,7 +1318,7 @@ class ChatController extends AEnvironmentAwareOCSController {
 				continue;
 			}
 
-			$data = $message->toArray($this->getResponseFormat());
+			$data = $message->toArray($this->getResponseFormat(), null);
 
 			if ($participant->getAttendee()->isSensitive()) {
 				$data['message'] = '';
@@ -1384,7 +1403,7 @@ class ChatController extends AEnvironmentAwareOCSController {
 		$this->messageParser->parseMessage($systemMessage);
 
 
-		$data = $systemMessage->toArray($this->getResponseFormat());
+		$data = $systemMessage->toArray($this->getResponseFormat(), null);
 
 		$bridge = $this->matterbridgeManager->getBridgeOfRoom($this->room);
 
@@ -1610,6 +1629,8 @@ class ChatController extends AEnvironmentAwareOCSController {
 	protected function getMessagesForRoom(array $messageIds): array {
 		$comments = $this->chatManager->getMessagesForRoomById($this->room, $messageIds);
 		$this->sharePreloader->preloadShares($comments);
+		$potentialThreadIds = array_map(static fn (IComment $comment) => (int)$comment->getTopmostParentId() ?: (int)$comment->getId(), $comments);
+		$threads = $this->threadService->findByThreadIds($this->room->getId(), $potentialThreadIds);
 
 		$messages = [];
 		$comments = $this->chatManager->filterCommentsWithNonExistingFiles($comments);
@@ -1628,7 +1649,8 @@ class ChatController extends AEnvironmentAwareOCSController {
 				continue;
 			}
 
-			$messages[$comment->getId()] = $message->toArray($this->getResponseFormat());
+			$threadId = (int)$comment->getTopmostParentId() ?: (int)$comment->getId();
+			$messages[$comment->getId()] = $message->toArray($this->getResponseFormat(), $threads[$threadId] ?? null);
 		}
 
 		return $messages;
