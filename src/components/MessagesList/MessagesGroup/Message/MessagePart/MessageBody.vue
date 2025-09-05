@@ -148,7 +148,7 @@
 				size="small"
 				@click="handleThreadClick">
 				<template #icon>
-					<IconArrowLeftTop :size="16" />
+					<IconArrowLeftTop class="bidirectional-icon" :size="16" />
 				</template>
 				{{ threadNumReplies }}
 			</NcButton>
@@ -307,7 +307,12 @@ export default {
 		},
 
 		isThreadStarterMessage() {
-			return !this.threadId && this.message.isThread && this.message.id === this.message.threadId
+			if (this.threadId || !this.message.isThread) {
+				return false
+			}
+
+			return this.message.id === this.message.threadId
+				|| (this.message.threadTitle && this.message.id.toString().startsWith('temp-'))
 		},
 
 		threadInfo() {
@@ -315,12 +320,13 @@ export default {
 		},
 
 		threadTitle() {
-			return this.threadInfo?.thread.title ?? this.message.message
+			return this.threadInfo?.thread.title ?? this.message.threadTitle
 		},
 
 		threadNumReplies() {
-			return this.threadInfo?.thread.numReplies
-				? n('spreed', '%n reply', '%n replies', this.threadInfo.thread.numReplies)
+			const numReplies = this.threadInfo?.thread.numReplies ?? this.message.threadReplies
+			return numReplies
+				? n('spreed', '%n reply', '%n replies', numReplies)
 				: t('spreed', 'Reply')
 		},
 
