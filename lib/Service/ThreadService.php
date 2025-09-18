@@ -56,7 +56,7 @@ class ThreadService {
 
 	/**
 	 * @param non-negative-int $roomId
-	 * @param list<non-negative-int> $threadId
+	 * @param list<non-negative-int> $threadIds
 	 * @return array<int, Thread> Map with thread id as key
 	 */
 	public function findByThreadIds(int $roomId, array $threadIds): array {
@@ -64,6 +64,20 @@ class ThreadService {
 		$result = [];
 		foreach ($threads as $thread) {
 			$result[$thread->getId()] = $thread;
+		}
+		return $result;
+	}
+
+	/**
+	 * @internal Warning: does not check room memberships
+	 * @param list<non-negative-int> $threadIds
+	 * @return array<int, Thread> Map with room id as key
+	 */
+	public function preloadThreadsForConversationList(array $threadIds): array {
+		$threads = $this->threadMapper->getForIds($threadIds);
+		$result = [];
+		foreach ($threads as $thread) {
+			$result[$thread->getRoomId()] = $thread;
 		}
 		return $result;
 	}
@@ -207,7 +221,7 @@ class ThreadService {
 		$query->executeStatement();
 	}
 
-	public function updateLastMessageInfoAfterReply(int $threadId, int $lastMessageId): void {
+	public function updateLastMessageInfoAfterReply(int $threadId, int $lastMessageId): bool {
 		$dateTime = $this->timeFactory->getDateTime();
 
 		$query = $this->connection->getQueryBuilder();
@@ -216,7 +230,7 @@ class ThreadService {
 			->set('last_message_id', $query->createNamedParameter($lastMessageId))
 			->set('last_activity', $query->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->where($query->expr()->eq('id', $query->createNamedParameter($threadId)));
-		$query->executeStatement();
+		return (bool)$query->executeStatement();
 	}
 
 	public function deleteByRoom(Room $room): void {
