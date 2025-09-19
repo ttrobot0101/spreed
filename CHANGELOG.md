@@ -5,6 +5,44 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 22.0.0-rc.3 – 2025-09-18
+### Fixed
+- fix(call): Correctly sync media devices with OS sound settings
+  [#15900](https://github.com/nextcloud/spreed/pull/15900)
+  [#15972](https://github.com/nextcloud/spreed/pull/15972)
+- fix(chat): Validate file name when creating from template instead of failing afterwards
+  [#15920](https://github.com/nextcloud/spreed/issues/15920)
+- fix(threads): Post shared files in the opened thread
+  [#15938](https://github.com/nextcloud/spreed/pull/15938)
+- fix(threads): Count shared files as thread replies and last message
+  [#15946](https://github.com/nextcloud/spreed/pull/15946)
+
+## 21.1.5 – 2025-09-18
+### Changed
+- Update translations
+- Update dependencies
+
+### Fixed
+- fix(chat): Validate file name when creating from template instead of failing afterwards
+  [#15919](https://github.com/nextcloud/spreed/issues/15919)
+- fix(conversation): Fix spacing between items in conversation list when forwarding
+  [#15812](https://github.com/nextcloud/spreed/issues/15812)
+- fix(conversation): Fix joining and leaving conversations when errors occurred
+  [#15797](https://github.com/nextcloud/spreed/issues/15797)
+
+## 20.1.10 – 2025-09-18
+### Changed
+- Update translations
+- Update dependencies
+
+### Fixed
+- fix(chat): Support at-all in captions
+  [#15746](https://github.com/nextcloud/spreed/issues/15746)
+- fix(chat): Fix loading a completely empty conversation as a guest
+  [#15551](https://github.com/nextcloud/spreed/issues/15551)
+- fix(conversation): Fix joining and leaving conversations when errors occurred
+  [#15796](https://github.com/nextcloud/spreed/issues/15796)
+
 ## 22.0.0-rc.2 – 2025-09-11
 ### Fixed
 - fix(chat): send messages with reduced conversation data available
