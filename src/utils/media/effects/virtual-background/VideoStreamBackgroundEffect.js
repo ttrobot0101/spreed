@@ -14,6 +14,9 @@ import {
 } from './TimerWorker.js'
 import WebGLCompositor from './WebGLCompositor.js'
 
+// Cache MediaPipe resources to avoid loading them multiple times.
+let _WasmFileset = null
+
 /**
  * Represents a modified MediaStream that applies virtual background effects
  * (blur, image, video, or video stream) using MediaPipe segmentation.
@@ -54,6 +57,7 @@ export default class VideoStreamBackgroundEffect {
 		this._loaded = false
 		this._loadFailed = false
 
+		this._isFirstBgChange = true
 		this.setVirtualBackground(this._options.virtualBackground)
 		this._useWebGL = this._options.webGL
 
@@ -76,10 +80,8 @@ export default class VideoStreamBackgroundEffect {
 			this._outputCanvasElement.getContext('2d')
 		}
 		this._inputVideoElement = document.createElement('video')
-		this._videoResizeObserver = null
 		this._bgChanged = false
-		this._lastVideoW = 0
-		this._lastVideoH = 0
+		this._prevBgMode = null
 	}
 
 	/**
@@ -90,9 +92,18 @@ export default class VideoStreamBackgroundEffect {
 	 */
 	async _initMediaPipe() {
 		try {
-			const vision = await FilesetResolver.forVisionTasks(generateFilePath('spreed', 'js', ''))
+			/**
+			 * Creates a fileset for the MediaPipe Vision tasks (object with paths to binaries)
+			 * Checks inside, if SIMD is supported to load the appropriate fileset
+			 */
+			if (!_WasmFileset) {
+				_WasmFileset = await FilesetResolver.forVisionTasks(generateFilePath('spreed', '', 'js'))
+			}
 
-			this._imageSegmenter = await ImageSegmenter.createFromOptions(vision, {
+			/**
+			 * Loads binaries and create an image segmentation TaskRunner
+			 */
+			this._imageSegmenter = await ImageSegmenter.createFromOptions(_WasmFileset, {
 				baseOptions: {
 					modelAssetPath: generateFilePath('spreed', 'js', 'selfie_segmenter.tflite'),
 					delegate: 'GPU',
@@ -242,6 +253,8 @@ export default class VideoStreamBackgroundEffect {
 		if (this._loaded && this._frameId === this._lastFrameId) {
 			this._frameId++
 			this._runInference().catch((e) => console.error(e))
+		} else if (this._useWebGL) {
+			this.runPostProcessing()
 		}
 
 		// Schedule next frame
@@ -321,21 +334,22 @@ export default class VideoStreamBackgroundEffect {
 	 *        VIDEO_STREAM.
 	 */
 	setVirtualBackground(virtualBackground) {
+		if (this._options.virtualBackground.backgroundType !== this._options.virtualBackground.backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE || (this._virtualImage?.complete && this._virtualImage?.naturalWidth > 0)) {
+			this._prevBgMode = !this._isFirstBgChange ? this._options.virtualBackground.backgroundType : null
+		}
 		// Clear previous elements to allow them to be garbage collected
 		this._virtualImage = null
 		this._virtualVideo = null
 		this._bgChanged = false
-
+		this._isFirstBgChange = false
 		this._options.virtualBackground = virtualBackground
 
 		if (this._options.virtualBackground.backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE) {
-			this._virtualImage = document.createElement('img')
-			this._virtualImage.crossOrigin = 'anonymous'
-			this._virtualImage.src = this._options.virtualBackground.virtualSource
+			this._virtualImage = new Image()
 			this._virtualImage.onload = () => {
 				this._bgChanged = true
 			}
-			this._bgChanged = false
+			this._virtualImage.src = this._options.virtualBackground.virtualSource
 
 			return
 		}
@@ -391,23 +405,35 @@ export default class VideoStreamBackgroundEffect {
 				return
 			}
 
-			let mode = 1
+			let mode = -1
 			let bgSource = null
 			let refreshBg = false
 
-			if (backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE
-				|| backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.VIDEO
-				|| backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.VIDEO_STREAM) {
-				mode = 0
-				if (backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE) {
-					bgSource = this._virtualImage
-					refreshBg = this._bgChanged && bgSource && bgSource.complete && bgSource.naturalWidth > 0
-					if (refreshBg) {
-						this._bgChanged = false
+			if (this._lastMask) {
+				mode = 1
+				if (backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE
+					|| backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.VIDEO
+					|| backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.VIDEO_STREAM) {
+					mode = 0
+					if (backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE) {
+						if (this._virtualImage?.complete && this._virtualImage?.naturalWidth > 0) {
+							// The background image is loaded, perform normal compositing and refresh the background if the image has changed
+							bgSource = this._virtualImage
+							refreshBg = this._bgChanged
+							if (refreshBg) {
+								this._bgChanged = false
+							}
+						} else if (this._prevBgMode === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.BLUR) {
+							// The background image is not loaded yet, so keep using blur since this was the last effect used
+							mode = 1
+						} else if (this._prevBgMode === null) {
+							// The background image is not loaded yet and there was no effect before, so just render the video as is
+							mode = -1
+						}
+					} else {
+						bgSource = this._virtualVideo
+						refreshBg = true
 					}
-				} else {
-					bgSource = this._virtualVideo
-					refreshBg = true
 				}
 			}
 
@@ -420,6 +446,7 @@ export default class VideoStreamBackgroundEffect {
 				outH: height,
 				edgeFeatherPx: edgesBlurValue,
 				refreshBg,
+				showProgress: !this._lastMask || (backgroundType === VIRTUAL_BACKGROUND.BACKGROUND_TYPE.IMAGE && !this._virtualImage?.complete),
 			})
 		} else {
 			this._outputCanvasCtx.globalCompositeOperation = 'copy'
@@ -593,6 +620,8 @@ export default class VideoStreamBackgroundEffect {
 		this._frameId = -1
 		this._lastFrameId = -1
 
+		this._bgChanged = true
+
 		this._outputStream = this._outputCanvasElement.captureStream(this._frameRate)
 
 		return this._outputStream
@@ -648,6 +677,8 @@ export default class VideoStreamBackgroundEffect {
 		this._segmentationMaskCtx = null
 		this._tempCanvas = null
 		this._tempCanvasCtx = null
+		this._isFirstBgChange = true
+		this._prevBgMode = null
 	}
 
 	/**
@@ -655,7 +686,7 @@ export default class VideoStreamBackgroundEffect {
 	 */
 	destroy() {
 		this.stopEffect()
-		this._imageSegmenter.close()
+		this._imageSegmenter?.close()
 		this._imageSegmenter = null
 	}
 }
