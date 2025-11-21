@@ -52,11 +52,11 @@
 		</NcAppSettingsSection>
 
 		<NcAppSettingsSection
-			v-if="!isGuest && supportConversationsListStyle"
 			id="talk_appearance"
 			:name="t('spreed', 'Appearance & Sounds')">
 			<NcFormBox>
 				<NcFormBoxSwitch
+					v-if="!isGuest && supportConversationsListStyle"
 					:model-value="conversationsListStyle"
 					:label="t('spreed', 'Compact conversations list')"
 					:disabled="appearanceLoading"
@@ -78,6 +78,7 @@
 					:disabled="playSoundsLoading"
 					@update:model-value="togglePlaySounds" />
 				<NcFormBoxButton
+					v-if="!isGuest"
 					:label="t('spreed', 'Notification settings')"
 					:description="t('spreed', 'Sounds for chat and call notifications')"
 					:href="settingsUrl"
@@ -147,13 +148,6 @@
 					</template>
 				</NcHotkey>
 			</NcHotkeyList>
-
-			<!-- Information about current version used. Talk Desktop has this in 'About' window -->
-			<p
-				v-if="!IS_DESKTOP"
-				class="app-settings-section__version">
-				{{ t('spreed', 'Talk version: {version}', { version: talkVersion }) }}
-			</p>
 		</NcAppSettingsShortcutsSection>
 	</NcAppSettingsDialog>
 </template>
@@ -177,7 +171,7 @@ import NcKbd from '@nextcloud/vue/components/NcKbd'
 import IconFolderOpenOutline from 'vue-material-design-icons/FolderOpenOutline.vue'
 import IconMicrophoneOutline from 'vue-material-design-icons/MicrophoneOutline.vue'
 import { CHAT_STYLE, CONVERSATION, PRIVACY } from '../../constants.ts'
-import { getTalkConfig, getTalkVersion } from '../../services/CapabilitiesManager.ts'
+import { getTalkConfig } from '../../services/CapabilitiesManager.ts'
 import { useCustomSettings } from '../../services/SettingsAPI.ts'
 import { useActorStore } from '../../stores/actor.ts'
 import { useSettingsStore } from '../../stores/settings.ts'
@@ -185,8 +179,6 @@ import { useSoundsStore } from '../../stores/sounds.js'
 
 const disableKeyboardShortcuts = OCP.Accessibility.disableKeyboardShortcuts()
 const settingsUrl = generateUrl('/settings/user/notifications')
-
-const talkVersion = getTalkVersion()
 
 const supportTypingStatus = getTalkConfig('local', 'chat', 'typing-privacy') !== undefined
 const supportStartWithoutMedia = getTalkConfig('local', 'call', 'start-without-media') !== undefined
@@ -218,10 +210,8 @@ export default {
 		const { customSettingsSections } = useCustomSettings()
 
 		return {
-			IS_DESKTOP,
 			disableKeyboardShortcuts,
 			settingsUrl,
-			talkVersion,
 			settingsStore,
 			soundsStore,
 			supportTypingStatus,
@@ -424,12 +414,3 @@ export default {
 	},
 }
 </script>
-
-<style lang="scss" scoped>
-.app-settings-section {
-	&__version {
-		margin-inline: var(--form-element-label-offset);
-		color: var(--color-text-maxcontrast);
-	}
-}
-</style>

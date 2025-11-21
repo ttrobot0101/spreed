@@ -5,6 +5,49 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 22.0.4 – 2025-11-20
+### Changed
+- Update translations
+
+### Fixed
+- fix(settings): Show appearance and sounds settings for guests again
+  [#16377](https://github.com/nextcloud/spreed/pull/16377)
+- fix(settings): Add app config to disable play-sounds for guests
+  [#16381](https://github.com/nextcloud/spreed/pull/16381)
+- fix(settings): Do not warn about missing experimental feature
+  [#16388](https://github.com/nextcloud/spreed/pull/16388)
+- fix(settings): Fix path for WASM file check
+  [#16389](https://github.com/nextcloud/spreed/pull/16389)
+
+## 22.0.3 – 2025-11-20
+### Changed
+- Update dependencies
+- Update translations
+- feat(call): Use hardware acceleration for background blur
+  [#16310](https://github.com/nextcloud/spreed/pull/16310)
+- feat(settings): Redesign Talk settings
+  [#16304](https://github.com/nextcloud/spreed/pull/16304)
+- perf(chat): Chat messages can be relayed via the HPB when enabling an experiment
+  [#16240](https://github.com/nextcloud/spreed/pull/16240)
+
+### Fixed
+- fix(chat): Fix memory leak from styles recalculation
+  [#16260](https://github.com/nextcloud/spreed/pull/16260)
+- fix(chat): Fix rendering performance from message bottom-bar
+  [#16307](https://github.com/nextcloud/spreed/pull/16307)
+- fix(conversations): Fix rendering performance of left sidebar with many conversations
+  [#16340](https://github.com/nextcloud/spreed/pull/16340)
+- fix(call): Fix squeezed buttons in small screens
+  [#16205](https://github.com/nextcloud/spreed/pull/16205)
+- fix(call): Use bulk activity events when ending a call
+  [#16263](https://github.com/nextcloud/spreed/pull/16263)
+- fix(chat): Fix amount of requests when a guest sets their name
+  [#16364](https://github.com/nextcloud/spreed/pull/16364)
+- fix(federation): Allow access to shared items like location, threads, … for federated users
+  [#16269](https://github.com/nextcloud/spreed/pull/16269)
+- fix(search): Use short datetime style in search
+  [#16233](https://github.com/nextcloud/spreed/pull/16233)
+
 ## 22.0.2 – 2025-10-27
 ### Changed
 - Update dependencies

@@ -9,12 +9,13 @@
 			v-if="isSpecialAvatar"
 			:key="(isDarkTheme ? 'dark-' : 'light-') + '_' + id"
 			class="avatar"
-			:user="name + '_' + id"
+			:user="id"
 			:url="!isFederatedUser ? undefined : avatarUrl"
 			:icon-class="iconClass"
 			:display-name="name"
 			:disable-tooltip="disableTooltip"
 			disable-menu
+			is-no-user
 			:hide-status="!showUserStatus"
 			:verbose-status="false"
 			:preloaded-user-status="preloadedUserStatus ?? {}"
@@ -367,6 +368,10 @@ export default {
 	:deep(.avatar-class-icon) {
 		background-color: var(--color-text-maxcontrast-default);
 	}
+}
+
+:deep(.icon-user) {
+	background-size: calc(var(--avatar-size) / 2);
 }
 
 </style>
