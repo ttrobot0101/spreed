@@ -29,7 +29,7 @@ import { useActorStore } from '../stores/actor.ts'
 import { useCallViewStore } from '../stores/callView.ts'
 import { useChatStore } from '../stores/chat.ts'
 import { useChatExtrasStore } from '../stores/chatExtras.ts'
-import { useGuestNameStore } from '../stores/guestName.js'
+import { useGuestNameStore } from '../stores/guestName.ts'
 import { usePollsStore } from '../stores/polls.ts'
 import { useReactionsStore } from '../stores/reactions.js'
 import { useSharedItemsStore } from '../stores/sharedItems.ts'
@@ -1046,8 +1046,9 @@ const actions = {
 	 * @param {string} data.requestId id to identify request uniquely
 	 * @param {object} data.requestOptions request options;
 	 * @param {number} data.lastKnownMessageId The id of the last message in the store.
+	 * @param data.timeout
 	 */
-	async pollNewMessages(context, { token, lastKnownMessageId, requestId, requestOptions }) {
+	async pollNewMessages(context, { token, lastKnownMessageId, requestId, timeout, requestOptions }) {
 		const actorStore = useActorStore()
 		context.dispatch('cancelPollNewMessages', { requestId })
 
@@ -1067,6 +1068,7 @@ const actions = {
 			token,
 			lastKnownMessageId,
 			limit: CHAT.FETCH_LIMIT,
+			timeout,
 		}, requestOptions)
 		context.commit('setCancelPollNewMessages', { requestId })
 
