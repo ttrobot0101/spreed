@@ -12,7 +12,7 @@ A single video stream currently uses about 1 Mbit/sec and the total required ban
 
 This means that in a call with 5 participants, each has to send and receive about 4 Mbit/sec. Given the asymmetric nature of most typical broadband connections, it's sending video that quickly becomes the bottleneck. Moreover, decoding all those video streams puts a big strain on the system of each participant.
 
-To limit and CPU bandwidth usage, participants can disable video. This will drop the bandwidth use to audio only, about 50 kbit/sec (about 1/20th of the bandwidth of video), eliminating most decoding work. When all participants are on a fast network, a call with 20 people without video could be doable.
+To limit CPU and bandwidth usage, participants can disable video. This will drop the bandwidth use to audio only, about 50 kbit/sec (about 1/20th of the bandwidth of video), eliminating most decoding work. When all participants are on a fast network, a call with 20 people without video could be doable.
 
 Still a call creates a load on the participants' browsers (decoding streams) and on the server as it handles signaling. This, for example, also has consequences for devices that support calls. Mobile device browsers will sooner run out of compute capacity and cause issues to the call. While we continuously work to optimize Talk for performance, there is still work to be done so it is not unlikely that the bottleneck will be there for the time being. We very much welcome help in optimization of calls!
 
@@ -26,7 +26,7 @@ To make sure a call can sustain the largest number of participants, make sure th
     - on a desktop/laptop system, a browser like Firefox or Chrome should be used. The WebRTC implementation in other browsers is often sub-par. On a laptop, the power cord should be plugged in - this often results in better CPU performance.
     - on mobile devices, the Android/iOS apps should be used because mobile browsers will run out of computing power quickly.
 
-* all participant disables their video streams.
+* all participants disable their video streams.
 
 
 With this setup, 20 users should be possible in a typical setup.
