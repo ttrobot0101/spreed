@@ -314,12 +314,14 @@ export const useDevices = createSharedComposable(function() {
 
 	/**
 	 * Update audio stream
+	 *
+	 * @param {boolean} force whether to force the update (e.g. due to constraints change)
 	 */
-	function updateAudioStream() {
+	function updateAudioStream(force = false) {
 		if (!mediaDevicesManager.isSupported()) {
 			return
 		}
-		if (audioStreamInputId.value && audioStreamInputId.value === audioInputId.value) {
+		if (!force && audioStreamInputId.value && audioStreamInputId.value === audioInputId.value) {
 			return
 		}
 		if (pendingGetUserMediaAudioCount) {
@@ -340,6 +342,7 @@ export const useDevices = createSharedComposable(function() {
 
 		mediaDevicesManager.getUserMedia({ audio: true })
 			.then((stream) => {
+				audioStreamError.value = null
 				if (!initialized) {
 					// The promise was fulfilled once the stream is no
 					// longer needed, so just discard it.
@@ -437,6 +440,7 @@ export const useDevices = createSharedComposable(function() {
 
 		mediaDevicesManager.getUserMedia({ video: true })
 			.then((stream) => {
+				videoStreamError.value = null
 				if (!initialized) {
 					// The promise was fulfilled once the stream is no
 					// longer needed, so just discard it.
@@ -466,6 +470,7 @@ export const useDevices = createSharedComposable(function() {
 		audioOutputId,
 		videoInputId,
 		audioOutputSupported,
+		updateAudioStream,
 		subscribeToDevices,
 		unsubscribeFromDevices,
 		// MediaDevicesPreview only
