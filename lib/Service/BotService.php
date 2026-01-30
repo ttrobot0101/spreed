@@ -191,7 +191,7 @@ class BotService {
 
 		$this->invokeBots($botServers, $event->getRoom(), $event->getMessage(), [
 			'type' => 'Like',
-			'actor' => $this->activityPubHelper->generatePersonFromMessageActor($message),
+			'actor' => $this->activityPubHelper->generatePerson($event->getActorType(), $event->getActorId(), $event->getActorDisplayName()),
 			'object' => $this->activityPubHelper->generateNote($event->getMessage(), $messageData, $message->getMessageRaw()),
 			'target' => $this->activityPubHelper->generateCollectionFromRoom($event->getRoom()),
 			'content' => $event->getReaction(),
@@ -220,7 +220,7 @@ class BotService {
 
 		$this->invokeBots($botServers, $event->getRoom(), $event->getMessage(), [
 			'type' => 'Undo',
-			'actor' => $this->activityPubHelper->generatePersonFromMessageActor($message),
+			'actor' => $this->activityPubHelper->generatePerson($event->getActorType(), $event->getActorId(), $event->getActorDisplayName()),
 			'object' => [
 				'type' => 'Like',
 				'actor' => $this->activityPubHelper->generatePersonFromMessageActor($message),
@@ -257,6 +257,20 @@ class BotService {
 									(int)$comment->getId(),
 									$reaction
 								);
+
+								/**
+								 * Add the reactions to the original message for now,
+								 * so that when it's relayed, it shows the reaction already.
+								 *
+								 * TODO:
+								 * However, if we fix the sending order and the "reaction"
+								 * message is relayed after the message, a client would add
+								 * the reaction again showing 2 reactions while there is only one.
+								 * So in case we change that, we need to rever this here.
+								 */
+								$reactions = $comment->getReactions();
+								$reactions[$reaction] = ($reactions[$reaction] ?? 0) + 1;
+								$comment->setReactions($reactions);
 							} catch (\Exception $e) {
 								$this->logger->error('Error while trying to react as a bot: ' . $e->getMessage(), ['exception' => $e]);
 							}

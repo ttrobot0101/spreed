@@ -11,6 +11,7 @@
 			<AvatarWrapper
 				:id="actorId"
 				class="messages__avatar"
+				:class="{'messages__avatar--offseted': isPinnedMessageShown }"
 				:token="token"
 				:name="actorDisplayName"
 				:source="actorType"
@@ -48,6 +49,7 @@ import MessageItem from './Message/MessageItem.vue'
 import { useMessageInfo } from '../../../composables/useMessageInfo.ts'
 import { ATTENDEE, AVATAR, CHAT } from '../../../constants.ts'
 import { useActorStore } from '../../../stores/actor.ts'
+import { useChatExtrasStore } from '../../../stores/chatExtras.ts'
 import { useGuestNameStore } from '../../../stores/guestName.ts'
 
 export default {
@@ -108,6 +110,7 @@ export default {
 			AVATAR,
 			guestNameStore: useGuestNameStore(),
 			actorStore: useActorStore(),
+			chatExtrasStore: useChatExtrasStore(),
 			actorDisplayName,
 			actorInfo,
 			isSmallMobile: useIsSmallMobile(),
@@ -137,6 +140,10 @@ export default {
 
 		showAuthor() {
 			return !this.isSplitViewEnabled || !this.isSelfActor || this.isSmallMobile || this.isSidebar
+		},
+
+		isPinnedMessageShown() {
+			return this.chatExtrasStore.hasPinnedMessageShown(this.token)
 		},
 	},
 
@@ -185,12 +192,6 @@ export default {
 			padding-block-start: 0;
 		}
 	}
-
-	&.incoming {
-		.messages__avatar-wrapper {
-			padding-block-start: 0;
-		}
-	}
 	// END Split view: own messages on the right side
 }
 
@@ -210,6 +211,10 @@ export default {
 	&__avatar {
 		position: sticky;
 		top: 0;
+
+		&--offseted {
+			top: calc($pinned-message-banner-height + var(--default-grid-baseline) * 2);
+		}
 	}
 
 	&__content {
