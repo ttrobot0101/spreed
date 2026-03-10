@@ -100,7 +100,6 @@
 <script>
 import { showError } from '@nextcloud/dialogs'
 import { emit } from '@nextcloud/event-bus'
-import { loadState } from '@nextcloud/initial-state'
 import { t } from '@nextcloud/l10n'
 import { useIsMobile } from '@nextcloud/vue/composables/useIsMobile'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
@@ -222,7 +221,6 @@ export default {
 	data() {
 		return {
 			loading: false,
-			callEnabled: false,
 		}
 	},
 
@@ -310,7 +308,7 @@ export default {
 
 		startCallTitle() {
 			if (this.isNextcloudTalkHashDirty) {
-				return t('spreed', 'Nextcloud Talk was updated, you cannot start or join a call.') + ' ' + messagePleaseReload
+				return t('spreed', 'The server was updated, you cannot start or join a call.') + ' ' + messagePleaseReload
 			}
 
 			if (this.callViewStore.callHasJustEnded) {
@@ -329,7 +327,7 @@ export default {
 		},
 
 		showStartCallButton() {
-			return this.callEnabled
+			return getTalkConfig(this.token, 'call', 'enabled')
 				&& this.conversation.type !== CONVERSATION.TYPE.NOTE_TO_SELF
 				&& this.conversation.readOnly === CONVERSATION.STATE.READ_WRITE
 				&& (!this.conversation.remoteServer || hasTalkFeature(this.token, 'federation-v2'))
@@ -373,10 +371,6 @@ export default {
 			this.callViewStore.resetCallHasJustEnded()
 			this.talkHashStore.resetTalkProxyHashDirty(oldValue)
 		},
-	},
-
-	mounted() {
-		this.callEnabled = getTalkConfig(this.token, 'call', 'enabled')
 	},
 
 	methods: {
