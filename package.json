@@ -45,7 +45,7 @@
     "@nextcloud/router": "^3.0.1",
     "@nextcloud/sharing": "^0.4.0",
     "@nextcloud/upload": "^2.0.0-rc.0",
-    "@nextcloud/vue": "^9.5.0",
+    "@nextcloud/vue": "^9.6.0",
     "@sapphi-red/web-noise-suppressor": "^0.3.5",
     "@vue-leaflet/vue-leaflet": "^0.10.1",
     "@vueuse/components": "^14.2.1",
@@ -80,7 +80,7 @@
     "vue-tsc": "^3.2.5",
     "vuex": "^4.1.0",
     "webdav": "^5.8.0",
-    "webrtc-adapter": "^9.0.3",
+    "webrtc-adapter": "^9.0.4",
     "webrtcsupport": "^2.2.0",
     "wildemitter": "^1.2.1"
   },
