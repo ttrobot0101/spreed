@@ -79,6 +79,18 @@ export const CONVERSATION = {
 		MODERATORS: 2,
 	},
 
+	ATTRIBUTE: {
+		NONE: 0,
+		VOICE_ROOM: 1,
+	},
+
+	PRESET: {
+		DEFAULT: 'default',
+		FORCED: 'forced',
+		VOICE_ROOM: 'voiceroom',
+		PRESENTATION: 'presentation',
+	},
+
 	STATE: {
 		READ_WRITE: 0,
 		READ_ONLY: 1,
@@ -437,6 +449,7 @@ export const BOT = {
 		DISABLED: 0,
 		ENABLED: 1,
 		NO_SETUP: 2,
+		UNAVAILABLE: 3,
 	},
 } as const
 
