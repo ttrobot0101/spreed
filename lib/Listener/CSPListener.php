@@ -35,8 +35,8 @@ class CSPListener implements IEventListener {
 		$csp->addAllowedMediaDomain('blob:');
 		$csp->addAllowedWorkerSrcDomain('blob:');
 		$csp->addAllowedWorkerSrcDomain("'self'");
-		$csp->addAllowedChildSrcDomain('blob:');
-		$csp->addAllowedChildSrcDomain("'self'");
+		$csp->addAllowedFrameDomain('blob:');
+		$csp->addAllowedFrameDomain("'self'");
 		$csp->addAllowedScriptDomain('blob:');
 		$csp->addAllowedScriptDomain("'self'");
 		$csp->addAllowedScriptDomain("'wasm-unsafe-eval'");
