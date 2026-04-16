@@ -367,7 +367,7 @@ trait TRoomCommand {
 				return '';
 			}
 			return $user->getUID();
-		}, $this->userManager->search($context->getCurrentWord()));
+		}, $this->userManager->searchDisplayName($context->getCurrentWord()));
 	}
 
 	protected function completeGroupValues(CompletionContext $context): array {

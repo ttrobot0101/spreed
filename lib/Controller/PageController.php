@@ -213,7 +213,7 @@ class PageController extends Controller {
 						$this->throttler->resetDelay($this->request->getRemoteAddress(), 'talkRoomPassword', ['token' => $token, 'action' => 'talkRoomPassword']);
 					} else {
 						$this->talkSession->removePasswordForRoom($token);
-						$showBruteForceWarning = $this->throttler->getDelay($this->request->getRemoteAddress(), 'talkRoomPassword') > 5000;
+						$showBruteForceWarning = $this->throttler->showBruteforceWarning($this->request->getRemoteAddress(), 'talkRoomPassword');
 
 						if ($passwordVerification['url'] === '') {
 							$response = new TemplateResponse($this->appName, 'authenticate', [
@@ -389,7 +389,7 @@ class PageController extends Controller {
 				$this->throttler->resetDelay($this->request->getRemoteAddress(), 'talkRoomPassword', ['token' => $token, 'action' => 'talkRoomPassword']);
 			} else {
 				$this->talkSession->removePasswordForRoom($token);
-				$showBruteForceWarning = $this->throttler->getDelay($this->request->getRemoteAddress(), 'talkRoomPassword') > 5000;
+				$showBruteForceWarning = $this->throttler->showBruteforceWarning($this->request->getRemoteAddress(), 'talkRoomPassword');
 
 				if ($passwordVerification['url'] === '') {
 					$response = new TemplateResponse($this->appName, 'authenticate', [

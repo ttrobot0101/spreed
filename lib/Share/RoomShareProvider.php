@@ -304,7 +304,7 @@ class RoomShareProvider implements IShareProvider, IPartialShareProvider, IShare
 			->set('permissions', $update->createNamedParameter($share->getPermissions()))
 			->set('item_source', $update->createNamedParameter($share->getNode()->getId()))
 			->set('file_source', $update->createNamedParameter($share->getNode()->getId()))
-			->set('expiration', $update->createNamedParameter($share->getExpirationDate(), IQueryBuilder::PARAM_DATE))
+			->set('expiration', $update->createNamedParameter($share->getExpirationDate(), IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->executeStatement();
 
 		/*
@@ -317,7 +317,7 @@ class RoomShareProvider implements IShareProvider, IPartialShareProvider, IShare
 			->set('uid_initiator', $update->createNamedParameter($share->getSharedBy()))
 			->set('item_source', $update->createNamedParameter($share->getNode()->getId()))
 			->set('file_source', $update->createNamedParameter($share->getNode()->getId()))
-			->set('expiration', $update->createNamedParameter($share->getExpirationDate(), IQueryBuilder::PARAM_DATE))
+			->set('expiration', $update->createNamedParameter($share->getExpirationDate(), IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->executeStatement();
 
 		/*
@@ -887,7 +887,7 @@ class RoomShareProvider implements IShareProvider, IPartialShareProvider, IShare
 				->andWhere($qb->expr()->eq('share_with', $qb->createNamedParameter($userId)));
 
 			$result = $qb->executeQuery();
-			$shareId = $result->fetchColumn();
+			$shareId = $result->fetchOne();
 			$result->closeCursor();
 
 			if ($shareId !== false) {

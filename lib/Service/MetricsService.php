@@ -43,7 +43,7 @@ class MetricsService {
 			->andWhere($query->expr()->gt('last_ping', $query->createNamedParameter(time() - 60)));
 
 		$result = $query->executeQuery();
-		$numSessions = (int)$result->fetchColumn();
+		$numSessions = (int)$result->fetchOne();
 		$result->closeCursor();
 
 		return $numSessions;

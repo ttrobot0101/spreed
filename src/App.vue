@@ -204,7 +204,7 @@ export default {
 				}
 
 				if (newIsVoiceRoom && newToken) {
-					this.joinCallAutomatically()
+					this.joinCallAutomatically(newToken, oldToken)
 				}
 			},
 		},
@@ -298,7 +298,7 @@ export default {
 		})
 
 		EventBus.on('switch-to-conversation', async (params) => {
-			this.joinCallAutomatically()
+			await this.joinCallAutomatically(params.token)
 
 			this.skipLeaveWarning = true
 			this.$router.push({ name: 'conversation', params: { token: params.token } })
@@ -520,26 +520,26 @@ export default {
 			}
 		},
 
-		async joinCallAutomatically() {
+		async joinCallAutomatically(targetToken, prevToken = this.token) {
 			if (this.isInCall || this.isVoiceRoom) {
 				this.callViewStore.setForceCallView(true)
 
-				const enableAudio = !BrowserStorage.getItem('audioDisabled_' + this.token)
-				const enableVideo = !BrowserStorage.getItem('videoDisabled_' + this.token)
+				const enableAudio = !BrowserStorage.getItem('audioDisabled_' + prevToken)
+				const enableVideo = !BrowserStorage.getItem('videoDisabled_' + prevToken)
 				const enableVirtualBackground = !!BrowserStorage.getItem('virtualBackgroundEnabled')
 				const virtualBackgroundType = BrowserStorage.getItem('virtualBackgroundType')
 				const virtualBackgroundBlurStrength = BrowserStorage.getItem('virtualBackgroundBlurStrength')
 				const virtualBackgroundUrl = BrowserStorage.getItem('virtualBackgroundUrl')
 
 				// Fetch conversation object, if it's not known yet to the client
-				if (!this.$store.getters.conversation(this.token)) {
-					await this.fetchSingleConversation(this.token)
+				if (!this.$store.getters.conversation(targetToken)) {
+					await this.fetchSingleConversation(targetToken)
 				}
 
-				const conversation = this.$store.getters.conversation(this.token)
+				const previousConversation = this.$store.getters.conversation(prevToken)
 				const previousParticipants = []
-				if (conversation.type === CONVERSATION.TYPE.ONE_TO_ONE) {
-					previousParticipants.push(conversation.name)
+				if (previousConversation.type === CONVERSATION.TYPE.ONE_TO_ONE) {
+					previousParticipants.push(previousConversation.name)
 				}
 
 				// Remove previous listener to prevent stacking on rapid token changes
@@ -548,7 +548,7 @@ export default {
 				}
 
 				this._joinCallHandler = async ({ token }) => {
-					if (this.token !== token) {
+					if (targetToken !== token) {
 						return
 					}
 					if (enableAudio) {
@@ -593,7 +593,7 @@ export default {
 					}
 
 					const payload = {
-						token: this.token,
+						token,
 						participantIdentifier: this.actorStore.participantIdentifier,
 						flags,
 						silent: true,
@@ -613,8 +613,8 @@ export default {
 				}
 
 				const currentJoinedToken = SessionStorage.getItem('joined_conversation')
-				if (currentJoinedToken === this.token) {
-					this._joinCallHandler({ token: this.token })
+				if (currentJoinedToken === targetToken) {
+					this._joinCallHandler({ token: currentJoinedToken })
 				} else {
 					EventBus.once('joined-conversation', this._joinCallHandler)
 				}

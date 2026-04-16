@@ -9,17 +9,13 @@ declare(strict_types=1);
 namespace OCA\Talk;
 
 use OCA\Talk\Events\BeforeSignalingRoomPropertiesSentEvent;
-use OCA\Talk\Exceptions\ParticipantNotFoundException;
 use OCA\Talk\Model\Attendee;
-use OCA\Talk\Model\SelectHelper;
-use OCA\Talk\Model\Session;
 use OCA\Talk\Service\ParticipantService;
 use OCA\Talk\Service\RecordingService;
 use OCA\Talk\Service\RoomService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Comments\IComment;
 use OCP\EventDispatcher\IEventDispatcher;
-use OCP\IDBConnection;
 use OCP\Server;
 
 class Room {
@@ -108,7 +104,6 @@ class Room {
 	 */
 	public function __construct(
 		private Manager $manager,
-		private IDBConnection $db,
 		private IEventDispatcher $dispatcher,
 		private ITimeFactory $timeFactory,
 		private int $id,
@@ -463,65 +458,6 @@ class Room {
 		return $event->getProperties();
 	}
 
-	/**
-	 * @param string|null $userId
-	 * @param string|null|false $sessionId Set to false if you don't want to load a session (and save resources),
-	 *                                     string to try loading a specific session
-	 *                                     null to try loading "any"
-	 * @return Participant
-	 * @throws ParticipantNotFoundException When the user is not a participant
-	 * @deprecated
-	 */
-	public function getParticipant(?string $userId, $sessionId = null): Participant {
-		if (!is_string($userId) || $userId === '') {
-			throw new ParticipantNotFoundException('Not a user');
-		}
-
-		if ($this->currentUser === $userId && $this->participant instanceof Participant) {
-			if (!$sessionId
-				|| ($this->participant->getSession() instanceof Session
-					&& $this->participant->getSession()->getSessionId() === $sessionId)) {
-				return $this->participant;
-			}
-		}
-
-		$query = $this->db->getQueryBuilder();
-		$helper = new SelectHelper();
-		$helper->selectAttendeesTable($query);
-		$query->from('talk_attendees', 'a')
-			->where($query->expr()->eq('a.actor_type', $query->createNamedParameter(Attendee::ACTOR_USERS)))
-			->andWhere($query->expr()->eq('a.actor_id', $query->createNamedParameter($userId)))
-			->andWhere($query->expr()->eq('a.room_id', $query->createNamedParameter($this->getId())))
-			->setMaxResults(1);
-
-		if ($sessionId !== false) {
-			if ($sessionId !== null) {
-				$helper->selectSessionsTable($query);
-				$query->leftJoin('a', 'talk_sessions', 's', $query->expr()->andX(
-					$query->expr()->eq('s.session_id', $query->createNamedParameter($sessionId)),
-					$query->expr()->eq('a.id', 's.attendee_id')
-				));
-			} else {
-				$helper->selectSessionsTable($query); // FIXME PROBLEM
-				$query->leftJoin('a', 'talk_sessions', 's', $query->expr()->eq('a.id', 's.attendee_id'));
-			}
-		}
-
-		$result = $query->executeQuery();
-		$row = $result->fetch();
-		$result->closeCursor();
-
-		if ($row === false) {
-			throw new ParticipantNotFoundException('User is not a participant');
-		}
-
-		if ($this->currentUser === $userId) {
-			$this->participant = $this->manager->createParticipantObject($this, $row);
-			return $this->participant;
-		}
-
-		return $this->manager->createParticipantObject($this, $row);
-	}
 
 	public function setActiveSince(\DateTime $since, int $callFlag): void {
 		if (!$this->activeSince) {

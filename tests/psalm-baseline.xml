@@ -8,6 +8,11 @@
       <code><![CDATA[EditingCircleEvent]]></code>
     </UndefinedClass>
   </file>
+  <file src="lib/Capabilities.php">
+    <DeprecatedInterface>
+      <code><![CDATA[protected]]></code>
+    </DeprecatedInterface>
+  </file>
   <file src="lib/Chat/CommentsManager.php">
     <UndefinedMethod>
       <code><![CDATA[getLastKnownComment]]></code>
@@ -63,6 +68,11 @@
       <code><![CDATA[null]]></code>
     </NullArgument>
   </file>
+  <file src="lib/Controller/RoomController.php">
+    <DeprecatedConstant>
+      <code><![CDATA[Room::OBJECT_TYPE_PHONE_LEGACY]]></code>
+    </DeprecatedConstant>
+  </file>
   <file src="lib/Controller/TempAvatarController.php">
     <MissingDependency>
       <code><![CDATA[\OCP\Image]]></code>
@@ -92,6 +102,11 @@
       <code><![CDATA[EditingCircleEvent]]></code>
     </UndefinedClass>
   </file>
+  <file src="lib/Listener/RestrictStartingCalls.php">
+    <DeprecatedConstant>
+      <code><![CDATA[Room::OBJECT_TYPE_PHONE_LEGACY]]></code>
+    </DeprecatedConstant>
+  </file>
   <file src="lib/MatterbridgeManager.php">
     <UndefinedClass>
       <code><![CDATA[$this->tokenProvider]]></code>
@@ -99,6 +114,11 @@
       <code><![CDATA[$this->tokenProvider]]></code>
       <code><![CDATA[private]]></code>
     </UndefinedClass>
+  </file>
+  <file src="lib/Migration/Version14000Date20220330141647.php">
+    <DeprecatedMethod>
+      <code><![CDATA[getDatabasePlatform]]></code>
+    </DeprecatedMethod>
   </file>
   <file src="lib/Model/Poll.php">
     <LessSpecificReturnStatement>
@@ -121,6 +141,9 @@
     </MoreSpecificReturnType>
   </file>
   <file src="lib/Notification/Notifier.php">
+    <DeprecatedConstant>
+      <code><![CDATA[Room::OBJECT_TYPE_PHONE_LEGACY]]></code>
+    </DeprecatedConstant>
     <InvalidPropertyAssignmentValue>
       <code><![CDATA[$this->participants]]></code>
       <code><![CDATA[$this->rooms]]></code>
@@ -138,6 +161,9 @@
     </UndefinedClass>
   </file>
   <file src="lib/Service/AvatarService.php">
+    <DeprecatedConstant>
+      <code><![CDATA[Room::OBJECT_TYPE_PHONE_LEGACY]]></code>
+    </DeprecatedConstant>
     <MissingDependency>
       <code><![CDATA[\OCP\Image]]></code>
       <code><![CDATA[\OCP\Image]]></code>
@@ -154,6 +180,11 @@
       <code><![CDATA[NoUserException]]></code>
       <code><![CDATA[NoUserException]]></code>
     </UndefinedClass>
+  </file>
+  <file src="lib/Service/RoomService.php">
+    <DeprecatedConstant>
+      <code><![CDATA[Room::OBJECT_TYPE_PHONE_LEGACY]]></code>
+    </DeprecatedConstant>
   </file>
   <file src="lib/Share/Listener.php">
     <UndefinedClass>

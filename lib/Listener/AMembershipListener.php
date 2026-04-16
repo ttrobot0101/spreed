@@ -47,7 +47,7 @@ abstract class AMembershipListener implements IEventListener {
 
 		foreach ($rooms as $room) {
 			try {
-				$participant = $room->getParticipant($user->getUID());
+				$participant = $this->participantService->getParticipant($room, $user->getUID());
 				$participantType = $participant->getAttendee()->getParticipantType();
 				if ($participantType === Participant::USER) {
 					$this->participantService->removeUser($room, $user, AAttendeeRemovedEvent::REASON_REMOVED);

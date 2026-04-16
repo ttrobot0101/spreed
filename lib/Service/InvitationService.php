@@ -22,7 +22,7 @@ use OCP\IGroupManager;
 use OCP\IPhoneNumberUtil;
 use OCP\IUser;
 use OCP\IUserManager;
-use OCP\Mail\IMailer;
+use OCP\Mail\IEmailValidator;
 
 class InvitationService {
 	public function __construct(
@@ -35,7 +35,7 @@ class InvitationService {
 		protected ParticipantService $participantService,
 		protected IConfig $serverConfig,
 		protected Config $talkConfig,
-		protected IMailer $mailer,
+		protected IEmailValidator $emailValidator,
 	) {
 	}
 
@@ -90,7 +90,7 @@ class InvitationService {
 	protected function validateEmailInvitations(InvitationList $invitationList, array $emails): void {
 		$invalidEmails = $validEmails = [];
 		foreach ($emails as $email) {
-			if ($this->mailer->validateMailAddress($email)) {
+			if ($this->emailValidator->isValid($email)) {
 				$validEmails[$email] = strtolower($email);
 			} else {
 				$invalidEmails[] = $email;

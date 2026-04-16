@@ -61,7 +61,7 @@ class ReminderMapper extends QBMapper {
 		$query = $this->db->getQueryBuilder();
 		$query->select('*')
 			->from($this->getTableName())
-			->where($query->expr()->lt('date_time', $query->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATE), IQueryBuilder::PARAM_DATE));
+			->where($query->expr()->lt('date_time', $query->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATETIME_MUTABLE), IQueryBuilder::PARAM_DATETIME_MUTABLE));
 
 		return $this->findEntities($query);
 	}
@@ -69,7 +69,7 @@ class ReminderMapper extends QBMapper {
 	public function deleteExecutedReminders(\DateTime $dateTime): void {
 		$query = $this->db->getQueryBuilder();
 		$query->delete($this->getTableName())
-			->where($query->expr()->lt('date_time', $query->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATE), IQueryBuilder::PARAM_DATE));
+			->where($query->expr()->lt('date_time', $query->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATETIME_MUTABLE), IQueryBuilder::PARAM_DATETIME_MUTABLE));
 
 		$query->executeStatement();
 	}

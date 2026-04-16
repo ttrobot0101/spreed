@@ -270,11 +270,11 @@ class CommentsManager extends Manager {
 		}
 
 		if ($since !== null) {
-			$query->andWhere($query->expr()->gte('creation_timestamp', $query->createNamedParameter($since, IQueryBuilder::PARAM_DATE), IQueryBuilder::PARAM_DATE));
+			$query->andWhere($query->expr()->gte('creation_timestamp', $query->createNamedParameter($since, IQueryBuilder::PARAM_DATETIME_MUTABLE), IQueryBuilder::PARAM_DATETIME_MUTABLE));
 		}
 
 		if ($until !== null) {
-			$query->andWhere($query->expr()->lte('creation_timestamp', $query->createNamedParameter($until, IQueryBuilder::PARAM_DATE), IQueryBuilder::PARAM_DATE));
+			$query->andWhere($query->expr()->lte('creation_timestamp', $query->createNamedParameter($until, IQueryBuilder::PARAM_DATETIME_MUTABLE), IQueryBuilder::PARAM_DATETIME_MUTABLE));
 		}
 
 		if ($actorType !== null && $actorId !== null) {

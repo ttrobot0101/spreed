@@ -130,7 +130,7 @@ class CircleMembershipListener extends AMembershipListener {
 			}
 
 			try {
-				$participant = $room->getParticipant($member->getUserId());
+				$participant = $this->participantService->getParticipant($room, $member->getUserId());
 				if ($participant->getAttendee()->getParticipantType() === Participant::USER_SELF_JOINED) {
 					$this->participantService->updateParticipantType($room, $participant, Participant::USER);
 				}

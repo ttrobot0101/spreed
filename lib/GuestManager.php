@@ -27,6 +27,7 @@ use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\IUserSession;
+use OCP\Mail\IEmailValidator;
 use OCP\Mail\IMailer;
 use OCP\Util;
 use Psr\Log\LoggerInterface;
@@ -34,6 +35,7 @@ use Psr\Log\LoggerInterface;
 class GuestManager {
 	public function __construct(
 		protected Config $talkConfig,
+		protected IEmailValidator $emailValidator,
 		protected IMailer $mailer,
 		protected Defaults $defaults,
 		protected IUserSession $userSession,
@@ -79,7 +81,7 @@ class GuestManager {
 	}
 
 	public function validateMailAddress(string $email): bool {
-		return $this->mailer->validateMailAddress($email);
+		return $this->emailValidator->isValid($email);
 	}
 
 	/**

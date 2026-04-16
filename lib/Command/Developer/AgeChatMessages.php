@@ -101,8 +101,8 @@ class AgeChatMessages extends Base {
 			}
 
 			$update->setParameter('id', $row['id']);
-			$update->setParameter('creation_timestamp', $creationTimestamp, IQueryBuilder::PARAM_DATE);
-			$update->setParameter('expire_date', $expireDate, IQueryBuilder::PARAM_DATE);
+			$update->setParameter('creation_timestamp', $creationTimestamp, IQueryBuilder::PARAM_DATETIME_MUTABLE);
+			$update->setParameter('expire_date', $expireDate, IQueryBuilder::PARAM_DATETIME_MUTABLE);
 			$update->setParameter('meta_data', $metaData);
 			$update->executeStatement();
 		}

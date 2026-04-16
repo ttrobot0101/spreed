@@ -38,8 +38,8 @@ class RegenerateSignalingKeys implements IRepairStep {
 			try {
 				$this->talkConfig->getSignalingTicket(2, null);
 			} catch (\Exception $e) {
-				$this->appConfig->setAppValue('signaling_token_privkey_' . strtolower($alg), '');
-				$this->appConfig->setAppValue('signaling_token_pubkey_' . strtolower($alg), '');
+				$this->appConfig->setAppValueString('signaling_token_privkey_' . strtolower($alg), '');
+				$this->appConfig->setAppValueString('signaling_token_pubkey_' . strtolower($alg), '');
 
 				$this->talkConfig->getSignalingTokenPrivateKey($alg);
 			}

@@ -466,7 +466,7 @@ class RoomService {
 		$update = $this->db->getQueryBuilder();
 		$update->update('talk_rooms')
 			->set('recording_consent', $update->createNamedParameter($recordingConsent, IQueryBuilder::PARAM_INT))
-			->set('last_activity', $update->createNamedParameter($now, IQueryBuilder::PARAM_DATE))
+			->set('last_activity', $update->createNamedParameter($now, IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->where($update->expr()->eq('id', $update->createNamedParameter($room->getId(), IQueryBuilder::PARAM_INT)));
 		$update->executeStatement();
 
@@ -558,7 +558,7 @@ class RoomService {
 		$update = $this->db->getQueryBuilder();
 		$update->update('talk_rooms')
 			->set('lobby_state', $update->createNamedParameter($newState, IQueryBuilder::PARAM_INT))
-			->set('lobby_timer', $update->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATE))
+			->set('lobby_timer', $update->createNamedParameter($dateTime, IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->where($update->expr()->eq('id', $update->createNamedParameter($room->getId(), IQueryBuilder::PARAM_INT)));
 		$update->executeStatement();
 
@@ -1117,7 +1117,7 @@ class RoomService {
 	public function resetActiveSinceInDatabaseOnly(Room $room): bool {
 		$update = $this->db->getQueryBuilder();
 		$update->update('talk_rooms')
-			->set('active_since', $update->createNamedParameter(null, IQueryBuilder::PARAM_DATE))
+			->set('active_since', $update->createNamedParameter(null, IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->set('call_flag', $update->createNamedParameter(0, IQueryBuilder::PARAM_INT))
 			->set('call_permissions', $update->createNamedParameter(Attendee::PERMISSIONS_DEFAULT, IQueryBuilder::PARAM_INT))
 			->where($update->expr()->eq('id', $update->createNamedParameter($room->getId(), IQueryBuilder::PARAM_INT)))
@@ -1205,7 +1205,7 @@ class RoomService {
 
 		$update = $this->db->getQueryBuilder();
 		$update->update('talk_rooms')
-			->set('active_since', $update->createNamedParameter($since, IQueryBuilder::PARAM_DATE))
+			->set('active_since', $update->createNamedParameter($since, IQueryBuilder::PARAM_DATETIME_MUTABLE))
 			->where($update->expr()->eq('id', $update->createNamedParameter($room->getId(), IQueryBuilder::PARAM_INT)))
 			->andWhere($update->expr()->isNull('active_since'));
 		$result = (bool)$update->executeStatement();
