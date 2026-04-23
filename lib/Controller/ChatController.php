@@ -2440,12 +2440,13 @@ class ChatController extends AEnvironmentAwareOCSController {
 		'token' => '[a-z0-9]{4,30}',
 	])]
 	public function probeAttachmentFolder(array $fileNames = []): DataResponse {
-		if (!$this->talkConfig->isConversationSubfoldersEnabled()) {
-			return new DataResponse(['error' => $this->l->t('Conversation subfolders are disabled')], Http::STATUS_NOT_IMPLEMENTED);
-		}
-
 		/** @var string $uid — non-null, guaranteed by RequireLoggedInParticipant */
 		$uid = $this->userId;
+
+		if (!$this->talkConfig->isConversationSubfoldersEnabled()) {
+			$this->conversationFolderService->ensureAttachmentFolderExists($uid);
+			return new DataResponse(['error' => $this->l->t('Conversation subfolders are disabled')], Http::STATUS_NOT_IMPLEMENTED);
+		}
 
 		try {
 			$subfolder = $this->conversationFolderService->getOrCreateSubfolder($uid, $this->room);

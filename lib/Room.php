@@ -9,7 +9,6 @@ declare(strict_types=1);
 namespace OCA\Talk;
 
 use OCA\Talk\Events\BeforeSignalingRoomPropertiesSentEvent;
-use OCA\Talk\Model\Attendee;
 use OCA\Talk\Service\ParticipantService;
 use OCA\Talk\Service\RecordingService;
 use OCA\Talk\Service\RoomService;
@@ -122,7 +121,6 @@ class Room {
 		private string $remoteServer,
 		private string $remoteToken,
 		private int $defaultPermissions,
-		private int $callPermissions,
 		private int $callFlag,
 		private ?\DateTime $activeSince,
 		private ?\DateTime $lastActivity,
@@ -318,20 +316,6 @@ class Room {
 
 	public function setDefaultPermissions(int $defaultPermissions): void {
 		$this->defaultPermissions = $defaultPermissions;
-	}
-
-	/**
-	 * @deprecated
-	 */
-	public function getCallPermissions(): int {
-		return Attendee::PERMISSIONS_DEFAULT;
-	}
-
-	/**
-	 * @deprecated
-	 */
-	public function setCallPermissions(int $callPermissions): void {
-		$this->callPermissions = $callPermissions;
 	}
 
 	public function getCallFlag(): int {

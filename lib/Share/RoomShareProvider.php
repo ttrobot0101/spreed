@@ -928,7 +928,16 @@ class RoomShareProvider implements IShareProvider, IPartialShareProvider, IShare
 		$escapedAttachmentFolder = preg_quote($attachmentFolder, '/');
 		$pathWithPlaceholder = preg_replace("/^$escapedAttachmentFolder/", self::TALK_FOLDER_PLACEHOLDER, $path);
 		$childPathTemplate = $this->dbConnection->escapeLikeParameter($path) . '/_%';
-		$childPathTemplatePlaceholder = $this->dbConnection->escapeLikeParameter($pathWithPlaceholder) . '/_%';
+		// In 1-on-1 rooms the conversation folder name differs per user
+		// (each side sees the other's display name). The TYPE_ROOM share
+		// stores the sharer's folder name, so match by token instead.
+		if (preg_match('/-([a-z0-9]{4,30})$/', $pathWithPlaceholder, $m)) {
+			$escapedPlaceholder = $this->dbConnection->escapeLikeParameter(self::TALK_FOLDER_PLACEHOLDER);
+			$escapedToken = $this->dbConnection->escapeLikeParameter($m[1]);
+			$childPathTemplatePlaceholder = $escapedPlaceholder . '/%-' . $escapedToken . '/_%';
+		} else {
+			$childPathTemplatePlaceholder = $this->dbConnection->escapeLikeParameter($pathWithPlaceholder) . '/_%';
+		}
 
 		$chunks = array_chunk($allRooms, 100);
 		foreach ($chunks as $rooms) {

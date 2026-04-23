@@ -2833,6 +2833,25 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		$this->compareSearchResponse($formData);
 	}
 
+	#[Then('/^for user "([^"]*)" the file link of the last file message in room "([^"]*)" matches "([^"]*)"$/')]
+	public function forUserTheFileLinkOfTheLastFileMessageInRoomMatches(string $user, string $identifier, string $pattern): void {
+		$this->setCurrentUser($user);
+		$this->sendRequest('GET', '/apps/spreed/api/v1/chat/' . self::$identifierToToken[$identifier] . '?' . http_build_query(['lookIntoFuture' => 0]));
+		$this->assertStatusCode($this->response, 200);
+
+		$messages = $this->getDataFromResponse($this->response);
+		$fileLink = null;
+		foreach ($messages as $message) {
+			$link = $message['messageParameters']['file']['link'] ?? null;
+			if (is_string($link)) {
+				$fileLink = $link;
+			}
+		}
+
+		Assert::assertNotNull($fileLink, 'No file attachment message found for user "' . $user . '" in room "' . $identifier . '"');
+		Assert::assertMatchesRegularExpression($pattern, $fileLink, 'File link does not match expected pattern');
+	}
+
 	#[Then('/^user "([^"]*)" sees the following shared (media|audio|voice|file|deckcard|location|pinned|other) in room "([^"]*)" with (\d+)(?: \((v1)\))?$/')]
 	public function userSeesTheFollowingSharedMediaInRoom(string $user, string $objectType, string $identifier, int $statusCode, string $apiVersion = 'v1', ?TableNode $formData = null): void {
 		$this->setCurrentUser($user);

@@ -28,7 +28,6 @@ class SelectHelper {
 			$alias . 'avatar',
 			$alias . 'active_since',
 			$alias . 'default_permissions',
-			$alias . 'call_permissions',
 			$alias . 'call_flag',
 			$alias . 'last_activity',
 			$alias . 'last_message',

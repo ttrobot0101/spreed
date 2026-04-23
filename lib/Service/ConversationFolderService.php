@@ -40,6 +40,24 @@ class ConversationFolderService {
 	}
 
 	/**
+	 * Ensure the user's base attachment folder (e.g. /Talk) exists,
+	 * creating it if necessary.
+	 */
+	public function ensureAttachmentFolderExists(string $userId): void {
+		$userFolder = $this->rootFolder->getUserFolder($userId);
+		$attachmentFolder = ltrim($this->talkConfig->getAttachmentFolder($userId), '/');
+
+		try {
+			$node = $userFolder->get($attachmentFolder);
+			if (!$node instanceof Folder) {
+				throw new \RuntimeException('Attachment folder path is not a directory: ' . $attachmentFolder);
+			}
+		} catch (NotFoundException) {
+			$userFolder->newFolder($attachmentFolder);
+		}
+	}
+
+	/**
 	 * Returns the user's conversation subfolder for the given room,
 	 * creating the full folder hierarchy and the share if not yet present.
 	 *

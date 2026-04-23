@@ -367,7 +367,6 @@ class RoomServiceTest extends TestCase {
 			'',
 			'',
 			Attendee::PERMISSIONS_DEFAULT,
-			Attendee::PERMISSIONS_DEFAULT,
 			Participant::FLAG_DISCONNECTED,
 			null,
 			null,

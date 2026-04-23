@@ -851,10 +851,29 @@ class SystemMessage implements IEventListener {
 		} elseif ($participant && $room->getType() !== Room::TYPE_PUBLIC && $participant->getAttendee()->getActorType() === Attendee::ACTOR_FEDERATED_USERS) {
 			throw new ShareNotFound();
 		} else {
-			// Guest / public room path: load via the owner's root folder.
-			// Without a per-file share we cannot look up a share token, so
-			// guests will see the file as unavailable.
-			throw new ShareNotFound();
+			$node = $this->rootFolder->getFirstNodeById($nodeId);
+			if (!$node instanceof Node) {
+				throw new NotFoundException('File node ' . $nodeId . ' not found');
+			}
+
+			// Guests and public-room participants cannot follow /f/<id> links
+			// (authentication required). Resolve the enclosing folder-level
+			// TYPE_ROOM share for this room and point at the public /s/<token>
+			// URL so attendees without a Nextcloud login can still open the file.
+			[$shareToken, $pathInShare] = $this->resolvePublicShareForNode($room, $node);
+			if ($shareToken === null) {
+				throw new ShareNotFound();
+			}
+
+			$name = $node->getName();
+			$size = $node->getSize();
+			$path = $name;
+
+			$params = ['token' => $shareToken];
+			if ($pathInShare !== '/' && $pathInShare !== '') {
+				$params['path'] = $pathInShare;
+			}
+			$url = $this->url->linkToRouteAbsolute('files_sharing.sharecontroller.showShare', $params);
 		}
 
 		$fileId = $node->getId();
@@ -889,6 +908,56 @@ class SystemMessage implements IEventListener {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Walk up the node's parent chain to find the folder-level TYPE_ROOM share
+	 * that the conversation-folder mechanism creates for $room, and return the
+	 * share's public token plus the relative directory path from the share root
+	 * to the file's parent directory (suitable as the `path` query parameter on
+	 * the /s/<token> URL).
+	 *
+	 * Returns [null, ''] when no matching share is found (e.g. in non-public
+	 * rooms where the token would be rejected by ShareManager anyway).
+	 *
+	 * @return array{0: ?string, 1: string}
+	 */
+	private function resolvePublicShareForNode(Room $room, Node $node): array {
+		$roomToken = $room->getToken();
+		$shareToken = null;
+		$shareFolder = null;
+
+		$current = $node;
+		for ($depth = 0; $depth < 10; $depth++) {
+			try {
+				$parent = $current->getParent();
+			} catch (NotFoundException) {
+				break;
+			}
+			if ($parent === $current) {
+				break;
+			}
+			foreach ($this->shareProvider->getSharesByPath($parent) as $share) {
+				if ($share->getSharedWith() === $roomToken) {
+					$shareToken = $share->getToken();
+					$shareFolder = $parent;
+					break 2;
+				}
+			}
+			$current = $parent;
+		}
+
+		if ($shareToken === null || $shareFolder === null) {
+			return [null, ''];
+		}
+
+		$relative = substr($node->getPath(), strlen($shareFolder->getPath()));
+		$dir = dirname($relative);
+		if ($dir === '' || $dir === '.') {
+			$dir = '/';
+		}
+
+		return [$shareToken, $dir];
 	}
 
 	/**
