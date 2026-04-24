@@ -349,7 +349,6 @@ class RoomServiceTest extends TestCase {
 
 		$room = new Room(
 			$this->createMock(Manager::class),
-			$dispatcher,
 			$this->createMock(ITimeFactory::class),
 			1,
 			Room::TYPE_PUBLIC,

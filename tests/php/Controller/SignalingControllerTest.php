@@ -27,6 +27,7 @@ use OCA\Talk\Service\ParticipantService;
 use OCA\Talk\Service\RoomService;
 use OCA\Talk\Service\SessionService;
 use OCA\Talk\Signaling\Messages;
+use OCA\Talk\Signaling\RoomPropertiesHelper;
 use OCA\Talk\TalkSession;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Services\IAppConfig;
@@ -81,6 +82,7 @@ class SignalingControllerTest extends TestCase {
 	protected BanService&MockObject $banService;
 	protected LoggerInterface&MockObject $logger;
 	protected Authenticator&MockObject $authenticator;
+	protected RoomPropertiesHelper&MockObject $roomPropertiesHelper;
 	protected IDBConnection $dbConnection;
 	protected IConfig $serverConfig;
 	protected ?Config $config = null;
@@ -124,6 +126,7 @@ class SignalingControllerTest extends TestCase {
 		$this->banService = $this->createMock(BanService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$this->authenticator = $this->createMock(Authenticator::class);
+		$this->roomPropertiesHelper = $this->createMock(RoomPropertiesHelper::class);
 		$this->recreateSignalingController();
 	}
 
@@ -148,6 +151,7 @@ class SignalingControllerTest extends TestCase {
 			$this->banService,
 			$this->logger,
 			$this->authenticator,
+			$this->roomPropertiesHelper,
 			$this->userId,
 		);
 	}
@@ -805,9 +809,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->once())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with($this->userId)
+			->with($room, $this->userId)
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_ONE_TO_ONE,
@@ -866,9 +870,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->once())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with($this->userId)
+			->with($room, $this->userId)
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_PUBLIC,
@@ -931,9 +935,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->once())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with($this->userId)
+			->with($room, $this->userId)
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_PUBLIC,
@@ -994,9 +998,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->once())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with('')
+			->with($room, '')
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_PUBLIC,
@@ -1056,9 +1060,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->once())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with($this->userId)
+			->with($room, $this->userId)
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_PUBLIC,
@@ -1131,9 +1135,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->once())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with($this->userId)
+			->with($room, $this->userId)
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_PUBLIC,
@@ -1226,9 +1230,9 @@ class SignalingControllerTest extends TestCase {
 		$room->expects($this->atLeastOnce())
 			->method('getToken')
 			->willReturn($roomToken);
-		$room->expects($this->once())
+		$this->roomPropertiesHelper->expects($this->once())
 			->method('getPropertiesForSignaling')
-			->with($this->userId)
+			->with($room, $this->userId)
 			->willReturn([
 				'name' => $roomName,
 				'type' => Room::TYPE_ONE_TO_ONE,

@@ -27,6 +27,7 @@ use OCA\Talk\Service\ParticipantService;
 use OCA\Talk\Service\RoomService;
 use OCA\Talk\Service\SessionService;
 use OCA\Talk\Signaling\Messages;
+use OCA\Talk\Signaling\RoomPropertiesHelper;
 use OCA\Talk\TalkSession;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -75,6 +76,7 @@ class SignalingController extends OCSController {
 		private BanService $banService,
 		private LoggerInterface $logger,
 		protected Authenticator $federationAuthenticator,
+		private RoomPropertiesHelper $roomPropertiesHelper,
 		private ?string $userId,
 	) {
 		parent::__construct($appName, $request);
@@ -931,7 +933,7 @@ class SignalingController extends OCSController {
 			'room' => [
 				'version' => '1.0',
 				'roomid' => $room->getToken(),
-				'properties' => $room->getPropertiesForSignaling((string)$userId),
+				'properties' => $this->roomPropertiesHelper->getPropertiesForSignaling($room, (string)$userId),
 				'permissions' => $permissions,
 			],
 		];

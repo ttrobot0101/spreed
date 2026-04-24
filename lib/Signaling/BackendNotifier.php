@@ -35,6 +35,7 @@ class BackendNotifier {
 		private Manager $signalingManager,
 		private ParticipantService $participantService,
 		private IURLGenerator $urlGenerator,
+		private RoomPropertiesHelper $roomPropertiesHelper,
 	) {
 	}
 
@@ -160,7 +161,7 @@ class BackendNotifier {
 				// TODO(fancycode): We should try to get rid of 'alluserids' and
 				// find a better way to notify existing users to update the room.
 				'alluserids' => $this->participantService->getParticipantUserIdsAndFederatedUserCloudIds($room),
-				'properties' => $room->getPropertiesForSignaling('', false),
+				'properties' => $this->roomPropertiesHelper->getPropertiesForSignaling($room, '', false),
 			],
 		]);
 		$duration = microtime(true) - $start;
@@ -196,7 +197,7 @@ class BackendNotifier {
 				// TODO(fancycode): We should try to get rid of 'alluserids' and
 				// find a better way to notify existing users to update the room.
 				'alluserids' => $allUserIds,
-				'properties' => $room->getPropertiesForSignaling('', false),
+				'properties' => $this->roomPropertiesHelper->getPropertiesForSignaling($room, '', false),
 			],
 		]);
 		$duration = microtime(true) - $start;
@@ -226,7 +227,7 @@ class BackendNotifier {
 				// TODO(fancycode): We should try to get rid of 'alluserids' and
 				// find a better way to notify existing users to update the room.
 				'alluserids' => $allUserIds,
-				'properties' => $room->getPropertiesForSignaling('', false),
+				'properties' => $this->roomPropertiesHelper->getPropertiesForSignaling($room, '', false),
 			],
 		]);
 		$duration = microtime(true) - $start;
@@ -253,7 +254,7 @@ class BackendNotifier {
 				// the message from their federated Nextcloud server once the
 				// property change is propagated.
 				'userids' => $this->participantService->getParticipantUserIds($room),
-				'properties' => $room->getPropertiesForSignaling(''),
+				'properties' => $this->roomPropertiesHelper->getPropertiesForSignaling($room, ''),
 			],
 		]);
 		$duration = microtime(true) - $start;

@@ -8,13 +8,11 @@ declare(strict_types=1);
 
 namespace OCA\Talk;
 
-use OCA\Talk\Events\BeforeSignalingRoomPropertiesSentEvent;
 use OCA\Talk\Service\ParticipantService;
 use OCA\Talk\Service\RecordingService;
 use OCA\Talk\Service\RoomService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Comments\IComment;
-use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Server;
 
 class Room {
@@ -103,7 +101,6 @@ class Room {
 	 */
 	public function __construct(
 		private Manager $manager,
-		private IEventDispatcher $dispatcher,
 		private ITimeFactory $timeFactory,
 		private int $id,
 		private int $type,
@@ -411,37 +408,6 @@ class Room {
 		$this->currentUser = $userId;
 		$this->participant = $participant;
 	}
-
-	/**
-	 * Return the room properties to send to the signaling server.
-	 *
-	 * @param string $userId
-	 * @param bool $roomModified
-	 * @return array
-	 */
-	public function getPropertiesForSignaling(string $userId, bool $roomModified = true): array {
-		$properties = [
-			'name' => $this->getDisplayName($userId),
-			'type' => $this->getType(),
-			'lobby-state' => $this->getLobbyState(),
-			'lobby-timer' => $this->getLobbyTimer(),
-			'read-only' => $this->getReadOnly(),
-			'listable' => $this->getListable(),
-			'active-since' => $this->getActiveSince(),
-			'sip-enabled' => $this->getSIPEnabled(),
-		];
-
-		if ($roomModified) {
-			$properties['description'] = $this->getDescription();
-		} else {
-			$properties['participant-list'] = 'refresh';
-		}
-
-		$event = new BeforeSignalingRoomPropertiesSentEvent($this, $userId, $properties);
-		$this->dispatcher->dispatchTyped($event);
-		return $event->getProperties();
-	}
-
 
 	public function setActiveSince(\DateTime $since, int $callFlag): void {
 		if (!$this->activeSince) {
