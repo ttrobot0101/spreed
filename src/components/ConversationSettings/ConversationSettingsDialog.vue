@@ -211,6 +211,10 @@ export default {
 			return this.conversation.canEnableSIP
 		},
 
+		isCallEnabled() {
+			return getTalkConfig(this.token, 'call', 'enabled')
+		},
+
 		isNoteToSelf() {
 			return this.conversation.type === CONVERSATION.TYPE.NOTE_TO_SELF
 		},
@@ -278,12 +282,14 @@ export default {
 		},
 
 		canConfigureLiveTranscription() {
-			return this.isLiveTranscriptionSupported
+			return this.isCallEnabled
+				&& this.isLiveTranscriptionSupported
 				&& this.selfIsOwnerOrModerator
 		},
 
 		hintLiveTranscription() {
-			return !this.isLiveTranscriptionSupported
+			return this.isCallEnabled
+				&& !this.isLiveTranscriptionSupported
 				&& this.selfIsOwnerOrModerator
 				&& showTalkFeatureHint(34)
 		},
@@ -296,7 +302,8 @@ export default {
 		},
 
 		recordingConsentAvailable() {
-			return (getTalkConfig(this.token, 'call', 'recording') || false)
+			return this.isCallEnabled
+				&& (getTalkConfig(this.token, 'call', 'recording') || false)
 				&& hasTalkFeature(this.token, 'recording-consent')
 				&& getTalkConfig(this.token, 'call', 'recording-consent') !== CONFIG.RECORDING_CONSENT.OFF
 		},

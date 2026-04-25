@@ -159,7 +159,6 @@ class Manager {
 		}
 
 		return new Room(
-			$this,
 			$this->timeFactory,
 			(int)$row['r_id'],
 			(int)$row['type'],

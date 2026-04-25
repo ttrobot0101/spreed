@@ -233,10 +233,13 @@ async function signalingJoinConversation(token, sessionId) {
  * sound for other participants or not
  * @param {boolean} recordingConsent Whether the participant gave their consent to be recorded
  * @param {Array<string>} silentFor List of participants that should not receive a notification about the call
+ * @param {object} options Additional options (for media)
+ * @param {boolean} [options.audioOn] Whether to enable audio on join
+ * @param {boolean} [options.videoOn] Whether to enable audio on join
  * @return {Promise<void>} Resolved with the actual flags based on the
  *          available media
  */
-async function signalingJoinCall(token, flags, silent, recordingConsent, silentFor) {
+async function signalingJoinCall(token, flags, silent, recordingConsent, silentFor, options = {}) {
 	if (tokensInSignaling[token]) {
 		pendingJoinCallToken = token
 
@@ -263,8 +266,8 @@ async function signalingJoinCall(token, flags, silent, recordingConsent, silentF
 			// The previous state might be wiped after the media is started, so
 			// it should be saved now.
 			const noiseSuppressionWithModel = BrowserStorage.getItem('noiseSuppressionWithModel') === 'true'
-			const enableAudio = !BrowserStorage.getItem('audioDisabled_' + token)
-			const enableVideo = !BrowserStorage.getItem('videoDisabled_' + token)
+			const enableAudio = options?.audioOn ?? !BrowserStorage.getItem('audioDisabled_' + token)
+			const enableVideo = options?.videoOn ?? !BrowserStorage.getItem('videoDisabled_' + token)
 			const enableVirtualBackground = !!BrowserStorage.getItem('virtualBackgroundEnabled')
 			const virtualBackgroundType = BrowserStorage.getItem('virtualBackgroundType')
 			const virtualBackgroundBlurStrength = BrowserStorage.getItem('virtualBackgroundBlurStrength')

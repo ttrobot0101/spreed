@@ -100,7 +100,6 @@ class Room {
 	 * @psalm-param self::MENTION_PERMISSIONS_* $mentionPermissions
 	 */
 	public function __construct(
-		private Manager $manager,
 		private ITimeFactory $timeFactory,
 		private int $id,
 		private int $type,
@@ -291,7 +290,8 @@ class Room {
 	}
 
 	public function getDisplayName(string $userId, bool $forceName = false): string {
-		return $this->manager->resolveRoomDisplayName($this, $userId, $forceName);
+		// TODO use DI
+		return Server::get(Manager::class)->resolveRoomDisplayName($this, $userId, $forceName);
 	}
 
 	public function getDescription(): string {
@@ -345,7 +345,8 @@ class Room {
 		}
 
 		if ($this->lastMessageId && $this->lastMessage === null) {
-			$this->lastMessage = $this->manager->loadLastCommentInfo($this->lastMessageId);
+			// TODO use DI
+			$this->lastMessage = Server::get(Manager::class)->loadLastCommentInfo($this->lastMessageId);
 			if ($this->lastMessage === null) {
 				$this->lastMessageId = 0;
 			}

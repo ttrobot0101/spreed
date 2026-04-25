@@ -849,7 +849,7 @@ const actions = {
 		return false
 	},
 
-	async joinCall({ commit, getters, state }, { token, participantIdentifier, flags, silent, recordingConsent, silentFor }) {
+	async joinCall({ commit, getters, state }, { token, participantIdentifier, flags, silent, recordingConsent, silentFor, options }) {
 		// SUMMARY: join call process
 		// There are 2 main steps to join a call:
 		// 1. Join the call (signaling-join-call)
@@ -945,7 +945,7 @@ const actions = {
 		EventBus.on('signaling-users-changed', handleUsersChanged)
 
 		try {
-			const actualFlags = await joinCall(token, flags, silent, recordingConsent, silentFor)
+			const actualFlags = await joinCall(token, flags, silent, recordingConsent, silentFor, options)
 			const updatedData = {
 				inCall: actualFlags,
 			}

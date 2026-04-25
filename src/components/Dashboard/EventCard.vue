@@ -219,7 +219,7 @@ function handleJoin({ call }: { call: boolean }) {
 				{{ invitesLabel }}
 			</span>
 			<NcButton
-				v-if="(hasCall && !isInCall)"
+				v-if="hasCall && !isInCall"
 				variant="primary"
 				@click="handleJoin({ call: true })">
 				<template #icon>

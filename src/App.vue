@@ -51,6 +51,7 @@ import { useGetToken } from './composables/useGetToken.ts'
 import { useHashCheck } from './composables/useHashCheck.js'
 import { useInterceptNotifications } from './composables/useInterceptNotifications.ts'
 import { useIsInCall } from './composables/useIsInCall.js'
+import { watchJoinedConversation } from './composables/useJoinedConversation.ts'
 import { useSessionIssueHandler } from './composables/useSessionIssueHandler.ts'
 import { CONVERSATION, PARTICIPANT } from './constants.ts'
 import BrowserStorage from './services/BrowserStorage.js'
@@ -63,6 +64,18 @@ import { useSidebarStore } from './stores/sidebar.ts'
 import { useTokenStore } from './stores/token.ts'
 import { checkBrowser } from './utils/browserCheck.ts'
 import { signalingKill } from './utils/webrtc/index.js'
+
+/** Internal handlers for 'joined-conversation' watcher (voice-, breakout- rooms) */
+let unwatchJoinedConversation = undefined
+let watchedJoinedConversationToken = undefined
+/**
+ * Release the listener for joined conversation
+ */
+function stopWatchingJoinedConversation() {
+	unwatchJoinedConversation?.()
+	unwatchJoinedConversation = undefined
+	watchedJoinedConversationToken = undefined
+}
 
 export default {
 	name: 'App',
@@ -183,6 +196,10 @@ export default {
 			if (!this.isBreakoutRoomsNavigation(oldValue, newValue)) {
 				this.recordingConsentGiven = false
 			}
+
+			if (watchedJoinedConversationToken && watchedJoinedConversationToken !== newValue) {
+				stopWatchingJoinedConversation()
+			}
 		},
 
 		voiceRoomIdentifier: {
@@ -262,6 +279,7 @@ export default {
 		}
 
 		window.removeEventListener('beforeunload', this.preventUnload)
+		stopWatchingJoinedConversation()
 
 		EventBus.off('joined-conversation')
 		EventBus.off('switch-to-conversation')
@@ -543,10 +561,7 @@ export default {
 					previousParticipants.push(previousConversation.name)
 				}
 
-				// Remove previous listener to prevent stacking on rapid token changes
-				if (this._joinCallHandler) {
-					EventBus.off('joined-conversation', this._joinCallHandler)
-				}
+				stopWatchingJoinedConversation()
 
 				this._joinCallHandler = async ({ token }) => {
 					if (targetToken !== token) {
@@ -613,12 +628,11 @@ export default {
 					this.callViewStore.setForceCallView(false)
 				}
 
-				const currentJoinedToken = SessionStorage.getItem('joined_conversation')
-				if (currentJoinedToken === targetToken) {
-					this._joinCallHandler({ token: currentJoinedToken })
-				} else {
-					EventBus.once('joined-conversation', this._joinCallHandler)
-				}
+				watchedJoinedConversationToken = targetToken
+				unwatchJoinedConversation = watchJoinedConversation(targetToken, () => {
+					stopWatchingJoinedConversation()
+					this._joinCallHandler({ token: targetToken })
+				}, { immediate: true })
 			}
 		},
 	},

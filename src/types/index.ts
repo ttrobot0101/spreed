@@ -642,6 +642,7 @@ export type UploadFile = {
 	}
 	sharePath?: string
 	status?: string
+	talkMetaData?: string
 	temporaryMessage: ChatMessage
 	totalSize?: number
 }
@@ -657,3 +658,11 @@ export type liveTranscriptionGetAvailableLanguagesResponse = ApiResponse<operati
 export type liveTranscriptionGetAvailableTranslationLanguagesResponse = ApiResponse<operations['live_transcription-get-available-translation-languages']['responses'][200]['content']['application/json']>
 export type liveTranscriptionSetLanguageResponse = ApiResponse<operations['live_transcription-set-language']['responses'][200]['content']['application/json']>
 export type liveTranscriptionSetTargetLanguageResponse = ApiResponse<operations['live_transcription-set-target-language']['responses'][200]['content']['application/json']>
+
+// Attachment post folder
+
+export type PostAttachmentFolderParams = Required<operations['chat-post-attachment-to-room']>['requestBody']['content']['application/json']
+export type PostAttachmentFolderResponse = ApiResponse<operations['chat-post-attachment-to-room']['responses'][200]['content']['application/json']>
+
+export type ProbeAttachmentFolderParams = Required<operations['chat-probe-attachment-folder']>['requestBody']['content']['application/json']
+export type ProbeAttachmentFolderResponse = ApiResponse<operations['chat-probe-attachment-folder']['responses'][200]['content']['application/json']>

@@ -265,7 +265,7 @@ import ConversationIcon from './../../ConversationIcon.vue'
 import IconMarkChatRead from '../../../../img/material-icons/mark-chat-read.svg?raw'
 import { useConversationInfo } from '../../../composables/useConversationInfo.ts'
 import { AVATAR, CONVERSATION, PARTICIPANT } from '../../../constants.ts'
-import { hasTalkFeature } from '../../../services/CapabilitiesManager.ts'
+import { getTalkConfig, hasTalkFeature } from '../../../services/CapabilitiesManager.ts'
 import { copyConversationLinkToClipboard } from '../../../utils/handleUrl.ts'
 
 const supportsArchive = hasTalkFeature('local', 'archived-conversations-v2')
@@ -407,7 +407,8 @@ export default {
 		},
 
 		showCallNotificationSettings() {
-			return !this.item.remoteServer || hasTalkFeature(this.item.token, 'federation-v2')
+			return getTalkConfig(this.item.token, 'call', 'enabled')
+				&& (!this.item.remoteServer || hasTalkFeature(this.item.token, 'federation-v2'))
 		},
 
 		iconType() {

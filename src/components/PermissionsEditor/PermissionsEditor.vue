@@ -16,6 +16,7 @@
 				<form @submit.prevent="handleSubmitPermissions">
 					<NcCheckboxRadioSwitch
 						v-model="callStart"
+						:disabled="!isCallEnabled"
 						class="checkbox">
 						{{ t('spreed', 'Start a call') }}
 					</NcCheckboxRadioSwitch>
@@ -37,16 +38,19 @@
 					</NcCheckboxRadioSwitch>
 					<NcCheckboxRadioSwitch
 						v-model="publishAudio"
+						:disabled="!isCallEnabled"
 						class="checkbox">
 						{{ t('spreed', 'Enable the microphone') }}
 					</NcCheckboxRadioSwitch>
 					<NcCheckboxRadioSwitch
 						v-model="publishVideo"
+						:disabled="!isCallEnabled"
 						class="checkbox">
 						{{ t('spreed', 'Enable the camera') }}
 					</NcCheckboxRadioSwitch>
 					<NcCheckboxRadioSwitch
 						v-model="publishScreen"
+						:disabled="!isCallEnabled"
 						class="checkbox">
 						{{ t('spreed', 'Share the screen') }}
 					</NcCheckboxRadioSwitch>
@@ -123,6 +127,11 @@ export default {
 			type: Boolean,
 			default: false,
 		},
+
+		token: {
+			type: String,
+			required: true,
+		},
 	},
 
 	emits: ['close', 'submit'],
@@ -175,6 +184,10 @@ export default {
 			// FIXME: token should be passed, but atm we don't have federated moderators,
 			// so can be skipped until refactored
 			return hasTalkFeature('local', 'react-permission')
+		},
+
+		isCallEnabled() {
+			return getTalkConfig(this.token, 'call', 'enabled')
 		},
 
 		maxDefaultPermission() {
