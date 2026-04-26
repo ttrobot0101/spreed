@@ -1,7 +1,6 @@
 Feature: callapi/recording
   Background:
     Given user "participant1" exists
-    Given user "participant2" exists
 
   Scenario: Start and stop video recording
     Given recording server is started
@@ -413,6 +412,7 @@ Feature: callapi/recording
       | 2    | room1 | 0             |
 
   Scenario: Get error when non moderator/owner try to start recording
+    Given user "participant2" exists
     Given recording server is started
     And user "participant1" creates room "room1" (v4)
       | roomType | 2 |

@@ -4,9 +4,9 @@ Feature: sharing-1/move
     Given user "participant1" exists
     Given user "participant2" exists
     Given user "participant3" exists
-    Given user "participant4" exists
 
   Scenario: move share to another folder
+    Given user "participant4" exists
     Given user "participant1" creates room "group room" (v4)
       | roomType | 2 |
       | roomName | room |

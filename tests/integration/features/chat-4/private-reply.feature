@@ -2,7 +2,6 @@ Feature: chat-4/private-reply
   Background:
     Given user "participant1" exists
     Given user "participant2" exists
-    Given user "participant3" exists
     And group "attendees1" exists
     And user "participant1" is member of group "attendees1"
     And user "participant2" is member of group "attendees1"
@@ -128,6 +127,7 @@ Feature: chat-4/private-reply
     When user "participant1" sends private reply "Reply" on message "Original" from room "group room" to room "public room" with 400
 
   Scenario: cannot send a private reply when sender is not in the source conversation
+    Given user "participant3" exists
     Given user "participant1" creates room "group room" (v4)
       | roomType | 2 |
       | invite   | attendees1 |
@@ -196,6 +196,7 @@ Feature: chat-4/private-reply
       | one-to-one room | users     | participant2 | participant2-displayname | Private Reply | []                | Original Message |
 
   Scenario: user can not send a private reply from a group room to one-to-one room other than the author
+    Given user "participant3" exists
     Given user "participant1" creates room "group room" (v4)
       | roomType | 2 |
       | invite   | attendees1 |

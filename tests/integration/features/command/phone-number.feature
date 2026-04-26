@@ -1,9 +1,9 @@
 Feature: command/phone-number
   Background:
     Given user "participant1" exists
-    Given user "participant2" exists
 
   Scenario: Configuring a phone number
+    Given user "participant2" exists
     Given invoking occ with "talk:phone-number:add abc participant1"
     Then the command failed with exit code 1
     And the command output contains the text "Not a valid phone number abc. The format is invalid."

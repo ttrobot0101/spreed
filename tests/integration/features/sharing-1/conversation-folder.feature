@@ -3,7 +3,6 @@ Feature: sharing-1/conversation-folder
   Background:
     Given user "participant1" exists
     Given user "participant2" exists
-    Given user "participant3" exists
 
   Scenario: Upload file to conversation folder and post as attachment to group room
     Given user "participant1" creates room "group room" (v4)
@@ -119,6 +118,7 @@ Feature: sharing-1/conversation-folder
     When user "participant1" posts file "welcome.txt" from their home to room "group room" with 422 (v1)
 
   Scenario: Non-participant cannot post attachment
+    Given user "participant3" exists
     Given user "participant1" creates room "group room" (v4)
       | roomType | 2    |
       | roomName | room |

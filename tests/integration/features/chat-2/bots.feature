@@ -1,7 +1,6 @@
 Feature: chat-2/bots
   Background:
     Given user "participant1" exists
-    Given user "participant2" exists
 
   Scenario: Installing the Webhook Demo bot
     Given invoking occ with "talk:bot:list"
@@ -382,6 +381,7 @@ Feature: chat-2/bots
     And the command output contains the text "Bot not found"
 
   Scenario: Cannot enable bots in a former one-to-one room
+    Given user "participant2" exists
     Given invoking occ with "talk:bot:list"
     Then the command was successful
     And the command output is empty

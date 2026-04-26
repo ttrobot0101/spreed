@@ -1,10 +1,10 @@
 Feature: chat-1/message-expiration
   Background:
     Given user "participant1" exists
-    Given user "participant2" exists
-    Given user "participant3" exists
 
   Scenario: Enable message expiration and check after expire
+    Given user "participant2" exists
+    Given user "participant3" exists
     Given user "participant1" creates room "room" (v4)
       | roomType | 3 |
       | roomName | room |
@@ -82,6 +82,7 @@ Feature: chat-1/message-expiration
       | room | users     | participant1 | participant1-displayname | conversation_created |
 
   Scenario: Cannot set message expiration in a former one to one room
+    Given user "participant2" exists
     Given user "participant1" creates room "room" (v4)
       | roomType | 1 |
       | invite   | participant2 |
