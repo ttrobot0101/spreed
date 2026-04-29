@@ -439,9 +439,7 @@ class Config {
 		}
 
 		if (!$this->config->getSystemValueBool('has_internet_connection', true)) {
-			$servers = array_filter($servers, static function ($server) {
-				return $server !== 'stun.nextcloud.com:443';
-			});
+			$servers = array_filter($servers, static fn ($server) => $server !== 'stun.nextcloud.com:443');
 		}
 
 		return $servers;

@@ -282,9 +282,7 @@ class RoomController extends AEnvironmentAwareOCSController {
 
 		$readPrivacy = $this->talkConfig->getUserReadPrivacy($this->userId);
 		if ($readPrivacy === Participant::PRIVACY_PUBLIC) {
-			$roomIds = array_map(static function (Room $room) {
-				return $room->getId();
-			}, $rooms);
+			$roomIds = array_map(static fn (Room $room) => $room->getId(), $rooms);
 			$this->commonReadMessages = $this->participantService->getLastCommonReadChatMessageForMultipleRooms($roomIds);
 		}
 

@@ -494,7 +494,7 @@ class RoomService {
 		}
 
 		$newName = trim($newName);
-		$oldName = $oldName ?? $room->getName();
+		$oldName ??= $room->getName();
 		if ($newName === $oldName) {
 			return;
 		}

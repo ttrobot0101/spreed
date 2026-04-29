@@ -161,16 +161,10 @@ class BackendNotifierTest extends TestCase {
 		$expectedUrl = $this->baseUrl . '/api/v1/room/' . $room->getToken();
 
 		$requests = $this->backendNotifier->getRequests();
-		$requests = array_filter($requests, function ($request) use ($expectedUrl) {
-			return $request['url'] === $expectedUrl;
-		});
-		$bodies = array_map(function ($request) use ($expectedUrl) {
-			return json_decode($this->validateBackendRequest($expectedUrl, $request), true);
-		}, $requests);
+		$requests = array_filter($requests, fn ($request) => $request['url'] === $expectedUrl);
+		$bodies = array_map(fn ($request) => json_decode($this->validateBackendRequest($expectedUrl, $request), true), $requests);
 
-		$bodies = array_filter($bodies, function (array $body) use ($message) {
-			return $body['type'] === $message['type'];
-		});
+		$bodies = array_filter($bodies, fn (array $body) => $body['type'] === $message['type']);
 
 		$this->assertContainsEquals($message, $bodies, json_encode($bodies, JSON_PRETTY_PRINT));
 	}

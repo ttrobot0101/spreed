@@ -37,9 +37,7 @@ class PollExportService {
 		$hasDetails = !empty($votes);
 		$statusStr = $poll->getStatus() === Poll::STATUS_CLOSED ? 'Closed' : 'Open';
 
-		$esc = function (string $s): string {
-			return htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-		};
+		$esc = (fn (string $s): string => htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8'));
 
 		// Build content.xml
 		$content = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"

@@ -886,9 +886,7 @@ class ParticipantService {
 		}
 
 		$members = $circle->getInheritedMembers();
-		return array_filter($members, static function (Member $member) {
-			return $member->getUserType() === Member::TYPE_USER;
-		});
+		return array_filter($members, static fn (Member $member) => $member->getUserType() === Member::TYPE_USER);
 	}
 
 	/**
@@ -2029,9 +2027,7 @@ class ParticipantService {
 		}
 		$attendees = $this->attendeeMapper->getActorsByTypes($room->getId(), $actorTypes, $maxLastJoinedTimestamp);
 
-		return array_map(static function (Attendee $attendee) {
-			return $attendee->getActorId();
-		}, $attendees);
+		return array_map(static fn (Attendee $attendee) => $attendee->getActorId(), $attendees);
 	}
 
 	public function getActorsCountByType(Room $room, string $actorType, int $maxLastJoined): int {

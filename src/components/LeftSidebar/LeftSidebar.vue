@@ -339,7 +339,7 @@
 				ref="searchResults"
 				class="scroller"
 				:searchText="searchText"
-				:contactsLoading="contactsLoading"
+				:searchResultsLoading="searchResultsLoading"
 				:conversationsList="conversationsList"
 				:searchResults="searchResults"
 				:searchResultsListedConversations="searchResultsListedConversations"
@@ -450,7 +450,13 @@ import { useSettingsStore } from '../../stores/settings.ts'
 import { useTalkHashStore } from '../../stores/talkHash.js'
 import { useTokenStore } from '../../stores/token.ts'
 import CancelableRequest from '../../utils/CancelableRequest.ts'
-import { filterConversation, hasCall, hasUnreadMentions, shouldIncludeArchived } from '../../utils/conversation.ts'
+import {
+	filterConversation,
+	hasCall,
+	hasUnreadMentions,
+	shouldIncludeArchived,
+	sortConversationsList,
+} from '../../utils/conversation.ts'
 import { requestTabLeadership } from '../../utils/requestTabLeadership.js'
 
 const isFederationEnabled = getTalkConfig('local', 'federation', 'enabled')
@@ -589,8 +595,7 @@ export default {
 			searchText: '',
 			searchResults: [],
 			searchResultsListedConversations: [],
-			contactsLoading: false,
-			listedConversationsLoading: false,
+			searchResultsLoading: true,
 			canStartConversations: getTalkConfig('local', 'conversations', 'can-create'),
 			cancelSearchPossibleConversations: () => {},
 			cancelSearchListedConversations: () => {},
@@ -627,36 +632,7 @@ export default {
 		},
 
 		sortedConversationsList() {
-			return this.filteredConversationsList.slice()
-				.sort((conversation1, conversation2) => {
-					// Favorites always first
-					if (conversation1.isFavorite !== conversation2.isFavorite) {
-						return conversation1.isFavorite ? -1 : 1
-					}
-
-					if (this.groupMode !== CONVERSATION.GROUP_MODE.NONE) {
-						const isOneToOne1 = [CONVERSATION.TYPE.ONE_TO_ONE, CONVERSATION.TYPE.ONE_TO_ONE_FORMER].includes(conversation1.type)
-						const isOneToOne2 = [CONVERSATION.TYPE.ONE_TO_ONE, CONVERSATION.TYPE.ONE_TO_ONE_FORMER].includes(conversation2.type)
-
-						if (isOneToOne1 !== isOneToOne2) {
-							if (this.groupMode === CONVERSATION.GROUP_MODE.GROUP_FIRST) {
-								// Group mode: groups first
-								return isOneToOne1 ? 1 : -1
-							} else if (this.groupMode === CONVERSATION.GROUP_MODE.PRIVATE_FIRST) {
-								// Group mode: private first
-								return isOneToOne1 ? -1 : 1
-							}
-						}
-					}
-
-					// Sort order: by alphabet A->Z
-					if (this.sortOrder === CONVERSATION.SORT_ORDER.ALPHABETICAL) {
-						return (conversation1.displayName).localeCompare(conversation2.displayName)
-					}
-
-					// Default (legacy) sort order: by recent activity
-					return conversation2.lastActivity - conversation1.lastActivity
-				})
+			return sortConversationsList(this.filteredConversationsList, this.groupMode, this.sortOrder)
 		},
 
 		emptyContentLabel() {
@@ -921,8 +897,6 @@ export default {
 		},
 
 		async fetchPossibleConversations() {
-			this.contactsLoading = true
-
 			try {
 				// FIXME: move to conversationsStore
 				this.cancelSearchPossibleConversations('canceled')
@@ -945,8 +919,6 @@ export default {
 				this.searchResults = response?.data?.ocs?.data.filter((match) => {
 					return !(match.source === ATTENDEE.ACTOR_TYPE.USERS && oneToOneMap.includes(match.id))
 				}) ?? []
-
-				this.contactsLoading = false
 			} catch (exception) {
 				if (isCancel(exception)) {
 					return
@@ -958,8 +930,6 @@ export default {
 
 		async fetchListedConversations() {
 			try {
-				this.listedConversationsLoading = true
-
 				// FIXME: move to conversationsStore
 				this.cancelSearchListedConversations('canceled')
 				const { request, cancel } = CancelableRequest(searchListedConversations)
@@ -967,7 +937,6 @@ export default {
 
 				const response = await request(this.searchText)
 				this.searchResultsListedConversations = response.data.ocs.data
-				this.listedConversationsLoading = false
 			} catch (exception) {
 				if (isCancel(exception)) {
 					return
@@ -987,7 +956,9 @@ export default {
 			this.showThreadsList = false
 
 			this.resetNavigation()
+			this.searchResultsLoading = true
 			await Promise.all([this.fetchPossibleConversations(), this.fetchListedConversations()])
+			this.searchResultsLoading = false
 			this.initializeNavigation()
 		},
 
