@@ -322,6 +322,7 @@
 					:conversations="sortedConversationsList"
 					:loading="!conversationsInitialised"
 					:compact="isCompact"
+					:showTags="!showArchived"
 					class="scroller"
 					@scroll="debounceHandleScroll" />
 				<NcButton
@@ -445,6 +446,7 @@ import { EventBus } from '../../services/EventBus.ts'
 import { talkBroadcastChannel } from '../../services/talkBroadcastChannel.js'
 import { useActorStore } from '../../stores/actor.ts'
 import { useChatExtrasStore } from '../../stores/chatExtras.ts'
+import { useConversationTagsStore } from '../../stores/conversationTags.ts'
 import { useFederationStore } from '../../stores/federation.ts'
 import { useSettingsStore } from '../../stores/settings.ts'
 import { useTalkHashStore } from '../../stores/talkHash.js'
@@ -557,6 +559,7 @@ export default {
 		const federationStore = useFederationStore()
 		const talkHashStore = useTalkHashStore()
 		const settingsStore = useSettingsStore()
+		const tagsStore = useConversationTagsStore()
 		const { initializeNavigation, resetNavigation } = useArrowNavigation(leftSidebar, searchBox)
 		const isMobile = useIsMobile()
 
@@ -587,6 +590,7 @@ export default {
 			actorStore: useActorStore(),
 			chatExtrasStore: useChatExtrasStore(),
 			tokenStore: useTokenStore(),
+			tagsStore,
 		}
 	},
 
@@ -792,6 +796,9 @@ export default {
 		this.debounceFetchSearchResults = debounce(this.fetchSearchResults, 250)
 		this.debounceFetchConversations = debounce(this.fetchConversations, 3000)
 		this.debounceHandleScroll = debounce(this.handleScroll, 50)
+
+		// Fetch conversation tags
+		this.tagsStore.fetchTags()
 
 		EventBus.on('should-refresh-conversations', this.handleShouldRefreshConversations)
 		EventBus.once('conversations-received', this.handleConversationsReceived)

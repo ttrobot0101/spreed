@@ -4,6 +4,7 @@
  */
 
 const browserslistConfig = require('@nextcloud/browserslist-config')
+const { RsdoctorRspackPlugin } = require('@rsdoctor/rspack-plugin')
 const { defineConfig } = require('@rspack/cli')
 const { CssExtractRspackPlugin, LightningCssMinimizerRspackPlugin, DefinePlugin, ProgressPlugin, SwcJsMinimizerRspackPlugin } = require('@rspack/core')
 const NodePolyfillPlugin = require('@rspack/plugin-node-polyfill')
@@ -83,6 +84,7 @@ module.exports = defineConfig((env) => {
 			hot: true,
 			host: '127.0.0.1',
 			port: 3000,
+			allowedHosts: 'all',
 			client: {
 				overlay: false,
 			},
@@ -220,6 +222,8 @@ module.exports = defineConfig((env) => {
 				chunkFilename: '../css/chunks/[id].chunk.css',
 				ignoreOrder: true,
 			}),
+
+			process.env.RSDOCTOR && new RsdoctorRspackPlugin(),
 		],
 
 		resolve: {

@@ -63,6 +63,7 @@ use OCA\Talk\RoomPresets\VoiceRoom;
 use OCA\Talk\Service\BanService;
 use OCA\Talk\Service\BreakoutRoomService;
 use OCA\Talk\Service\ChecksumVerificationService;
+use OCA\Talk\Service\ConversationTagService;
 use OCA\Talk\Service\InvitationService;
 use OCA\Talk\Service\NoteToSelfService;
 use OCA\Talk\Service\ParticipantService;
@@ -159,6 +160,7 @@ class RoomController extends AEnvironmentAwareOCSController {
 		protected IURLGenerator $url,
 		protected IL10N $l,
 		protected ThreadService $threadService,
+		protected ConversationTagService $conversationTagService,
 		protected Forced $forcedParameters,
 	) {
 		parent::__construct($appName, $request);
@@ -1883,6 +1885,29 @@ class RoomController extends AEnvironmentAwareOCSController {
 	])]
 	public function unarchiveConversation(): DataResponse {
 		$this->participantService->unarchiveConversation($this->participant);
+		return new DataResponse($this->formatRoom($this->room, $this->participant));
+	}
+
+	/**
+	 * Assign conversation tags
+	 *
+	 * Required capability: `conversation-tags`
+	 *
+	 * @param list<string> $tagIds IDs of tags to assign (empty array to unassign all)
+	 * @return DataResponse<Http::STATUS_OK, TalkRoom, array{}>
+	 *
+	 * 200: Conversation tags updated
+	 */
+	#[NoAdminRequired]
+	#[FederationSupported]
+	#[RequireLoggedInParticipant]
+	#[ApiRoute(verb: 'POST', url: '/api/{apiVersion}/room/{token}/tags', requirements: [
+		'apiVersion' => '(v4)',
+		'token' => '[a-z0-9]{4,30}',
+	])]
+	public function assignTags(array $tagIds = []): DataResponse {
+		$tagIds = $this->conversationTagService->validateTagIdsForUser($this->participant->getAttendee()->getActorId(), $tagIds);
+		$this->participantService->assignConversationToTags($this->participant, $tagIds);
 		return new DataResponse($this->formatRoom($this->room, $this->participant));
 	}
 

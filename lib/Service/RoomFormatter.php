@@ -158,6 +158,7 @@ class RoomFormatter {
 			'isArchived' => false,
 			'isImportant' => false,
 			'isSensitive' => false,
+			'tagIds' => [],
 			'hasScheduledMessages' => 0,
 			'attributes' => 0,
 		];
@@ -248,6 +249,7 @@ class RoomFormatter {
 			'isArchived' => $attendee->isArchived(),
 			'isImportant' => $attendee->isImportant(),
 			'isSensitive' => $attendee->isSensitive(),
+			'tagIds' => array_values(array_map('strval', json_decode($attendee->getTagIds() ?? '[]', true))),
 			'lastPinnedId' => $room->getLastPinnedId(),
 			'hiddenPinnedId' => $attendee->getHiddenPinnedId(),
 			'attributes' => $room->getAttributes(),

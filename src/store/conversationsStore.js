@@ -54,6 +54,7 @@ import {
 	unarchiveConversation,
 	unbindConversationFromObject,
 } from '../services/conversationsService.ts'
+import { assignConversationToTags } from '../services/conversationTagsService.ts'
 import { setLiveTranscriptionLanguage } from '../services/liveTranscriptionService.ts'
 import {
 	clearConversationHistory,
@@ -623,6 +624,19 @@ const actions = {
 			context.commit('addConversation', response.data.ocs.data)
 		} catch (error) {
 			console.error('Error while changing the conversation archived status: ', error)
+		}
+	},
+
+	async assignConversationToTags(context, { token, tagIds }) {
+		if (!context.getters.conversations[token]) {
+			return
+		}
+
+		try {
+			const response = await assignConversationToTags(token, tagIds)
+			context.commit('addConversation', response.data.ocs.data)
+		} catch (error) {
+			console.error('Error while assigning conversation to tags: ', error)
 		}
 	},
 
