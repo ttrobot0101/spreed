@@ -18,6 +18,7 @@ import { useConversationTagsStore } from '../../../stores/conversationTags.ts'
 export type VirtualListItem = (Conversation | TagHeaderItem) & { _key?: string }
 
 const props = defineProps<{
+	listAriaLabelledBy?: string
 	conversations: Conversation[]
 	loading?: boolean
 	compact?: boolean
@@ -316,6 +317,7 @@ defineExpose({
 		<LoadingPlaceholder v-if="loading" type="conversations" />
 		<ul
 			v-else
+			:aria-labelledby="listAriaLabelledBy"
 			:style="wrapperProps.style">
 			<template v-for="item in list" :key="item.data._key ?? item.data.id">
 				<ConversationTagHeader
