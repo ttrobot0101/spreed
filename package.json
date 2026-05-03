@@ -30,7 +30,7 @@
   ],
   "dependencies": {
     "@matrix-org/olm": "^3.2.15",
-    "@mediapipe/tasks-vision": "^0.10.34",
+    "@mediapipe/tasks-vision": "^0.10.35",
     "@nextcloud/auth": "^2.6.0",
     "@nextcloud/axios": "^2.6.0",
     "@nextcloud/browser-storage": "^0.5.0",
@@ -101,7 +101,7 @@
     "@vue/tsconfig": "^0.9.1",
     "css-loader": "^7.1.4",
     "globals": "^17.5.0",
-    "jsdom": "^29.0.2",
+    "jsdom": "^29.1.0",
     "openapi-typescript": "^7.13.0",
     "regenerator-runtime": "^0.14.1",
     "sass": "^1.99.0",
