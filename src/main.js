@@ -41,8 +41,6 @@ const instance = createApp(App, { fileInfo: null })
 	.use(NextcloudGlobalsVuePlugin)
 	.mount('#content')
 
-window.store = store
-
 // Setup Viewer to be used with Talk sidebar
 /**
  *

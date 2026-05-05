@@ -22,7 +22,7 @@ import { LocalCallParticipantModel } from './models/LocalCallParticipantModel.js
 import { LocalMediaModel } from './models/LocalMediaModel.js'
 import SentVideoQualityThrottler from './SentVideoQualityThrottler.js'
 import SpeakingStatusHandler from './SpeakingStatusHandler.js'
-import initWebRtc from './webrtc.js'
+import { destroyWebRtc, initWebRtc } from './webrtc.js'
 
 import './shims/MediaStream.js'
 import './shims/MediaStreamTrack.js'
@@ -500,6 +500,18 @@ async function signalingLeaveConversation(token) {
 function signalingKill() {
 	if (signaling) {
 		signaling.disconnect()
+		signaling = null
+	}
+}
+
+/**
+ * Immediately kill the WebRTC instance synchronously
+ * This should be called only in the unload handler
+ */
+function signalingWebRtcKill() {
+	if (webRtc) {
+		destroyWebRtc()
+		webRtc = null
 	}
 }
 
@@ -538,4 +550,5 @@ export {
 	signalingLeaveConversation,
 	signalingSendCallMessage,
 	signalingSetTyping,
+	signalingWebRtcKill,
 }

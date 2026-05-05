@@ -337,7 +337,7 @@
 					:conversations="sortedConversationsList"
 					:loading="!conversationsInitialised"
 					:compact="isCompact"
-					:showTags="!showArchived"
+					:showTags="supportTags && !showArchived"
 					class="scroller"
 					@scroll="debounceHandleScroll" />
 				<NcButton
@@ -489,6 +489,7 @@ const canNoteToSelf = hasTalkFeature('local', 'note-to-self')
 const supportsArchive = hasTalkFeature('local', 'archived-conversations-v2')
 const supportThreads = hasTalkFeature('local', 'threads')
 const supportSortOrder = getTalkConfig('local', 'conversations', 'sort-order') !== undefined
+const supportTags = hasTalkFeature('local', 'conversation-tags')
 
 // TRANSLATORS The main home view
 const HOME_BUTTON_LABEL = t('spreed', 'Home')
@@ -599,6 +600,7 @@ export default {
 			supportsArchive,
 			supportThreads,
 			supportSortOrder,
+			supportTags,
 			showArchived,
 			showThreadsList,
 			settingsStore,
@@ -817,8 +819,10 @@ export default {
 		this.debounceFetchConversations = debounce(this.fetchConversations, 3000)
 		this.debounceHandleScroll = debounce(this.handleScroll, 50)
 
-		// Fetch conversation tags
-		this.tagsStore.fetchTags()
+		if (supportTags) {
+			// Fetch conversation tags
+			this.tagsStore.fetchTags()
+		}
 
 		EventBus.on('should-refresh-conversations', this.handleShouldRefreshConversations)
 		EventBus.once('conversations-received', this.handleConversationsReceived)

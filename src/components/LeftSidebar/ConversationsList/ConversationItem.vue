@@ -231,6 +231,7 @@
 				</NcActionButton>
 
 				<NcActionButton
+					v-if="currentTagIds.length"
 					key="no-tag"
 					closeAfterClick
 					@click="assignToTags([])">

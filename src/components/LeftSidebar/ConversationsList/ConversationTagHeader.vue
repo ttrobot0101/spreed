@@ -4,7 +4,7 @@
 -->
 
 <script setup lang="ts">
-import type { ConversationTag } from '../../../types/index.ts'
+import type { Conversation, ConversationTag } from '../../../types/index.ts'
 
 import { t } from '@nextcloud/l10n'
 import { spawnDialog } from '@nextcloud/vue/functions/dialog'
@@ -75,10 +75,13 @@ async function handleDeleteTag() {
 
 	await tagsStore.removeTag(props.item.id)
 	// Remove the deleted tag ID from all conversations in the Vuex store
-	const conversations = vuexStore.getters.conversationsList
+	const conversations = vuexStore.getters.conversationsList as Conversation[]
 	for (const conversation of conversations) {
 		if (conversation.tagIds?.includes(props.item.id)) {
-			conversation.tagIds = conversation.tagIds.filter((id: string) => id !== props.item.id)
+			vuexStore.dispatch('setConversationProperties', {
+				token: conversation.token,
+				properties: { tagIds: conversation.tagIds.filter((id: string) => id !== props.item.id) },
+			})
 		}
 	}
 }

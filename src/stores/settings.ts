@@ -7,7 +7,7 @@ import type { ConversationPreset } from '../types/index.ts'
 
 import { getCurrentUser } from '@nextcloud/auth'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { CHAT_STYLE, CONVERSATION, PRIVACY } from '../constants.ts'
 import BrowserStorage from '../services/BrowserStorage.js'
 import { getTalkConfig, hasTalkFeature } from '../services/CapabilitiesManager.ts'
@@ -230,6 +230,15 @@ export const useSettingsStore = defineStore('settings', () => {
 		presets.value = response.data.ocs.data
 	}
 
+	const EXCLUDED_PRESETS = new Set([CONVERSATION.PRESET.FORCED]) // Should not be shown in UI
+	const HIDDEN_PRESETS = new Set<string>([])
+	const callsEnabled = getTalkConfig('local', 'call', 'enabled') !== false
+	if (!callsEnabled) {
+		HIDDEN_PRESETS.add(CONVERSATION.PRESET.VOICE_ROOM)
+	}
+
+	const visiblePresets = computed(() => presets.value.filter((preset) => !HIDDEN_PRESETS.has(preset.identifier) && !EXCLUDED_PRESETS.has(preset.identifier)))
+
 	return {
 		readStatusPrivacy,
 		typingStatusPrivacy,
@@ -247,6 +256,7 @@ export const useSettingsStore = defineStore('settings', () => {
 		groupMode,
 		liveTranscriptionTargetLanguageId,
 		presets,
+		visiblePresets,
 
 		fetchPresets,
 		updateSortOrder,

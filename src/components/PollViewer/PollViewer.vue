@@ -308,9 +308,12 @@ export default {
 				return n('spreed', 'Final results • %n vote', 'Final results • %n votes', this.poll?.numVoters)
 			}
 
-			if (this.selfIsOwnerOrModerator || (this.isPollPublic && this.selfHasVoted)) {
+			if ((this.selfIsOwnerOrModerator || this.selfHasVoted) && this.isPollPublic) {
 				return n('spreed', '%n vote', '%n votes', this.poll?.numVoters)
 			} else if (!this.isPollPublic) {
+				if (this.selfIsOwnerOrModerator) {
+					return n('spreed', '%n vote • Your vote is anonymous', '%n votes • Your vote is anonymous', this.poll?.numVoters)
+				}
 				return t('spreed', 'Your vote is anonymous')
 			}
 

@@ -33,8 +33,6 @@ __webpack_nonce__ = getCSPNonce()
 // We do not want the index.php since we're loading files
 __webpack_public_path__ = generateFilePath('spreed', '', 'js/')
 
-window.store = store
-
 if (!window.OCA.Talk) {
 	window.OCA.Talk = reactive({})
 }
