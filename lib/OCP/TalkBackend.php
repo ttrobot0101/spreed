@@ -25,12 +25,12 @@ use OCP\Talk\ITalkBackend;
 class TalkBackend implements ITalkBackend {
 
 	public function __construct(
-		protected Manager $manager,
-		protected ParticipantService $participantService,
-		protected RoomService $roomService,
-		protected IURLGenerator $url,
-		protected IUserSession $userSession,
-		protected Config $config,
+		private readonly Manager $manager,
+		private readonly ParticipantService $participantService,
+		private readonly RoomService $roomService,
+		private readonly IURLGenerator $url,
+		private readonly IUserSession $userSession,
+		private readonly Config $config,
 	) {
 	}
 
@@ -73,6 +73,7 @@ class TalkBackend implements ITalkBackend {
 		$this->roomService->deleteRoom($room);
 	}
 
+	#[\Override]
 	public function isAllowedToCreateConversations(): bool {
 		$user = $this->userSession->getUser();
 		if ($user === null) {
@@ -82,6 +83,7 @@ class TalkBackend implements ITalkBackend {
 		return !$this->config->isNotAllowedToCreateConversations($user);
 	}
 
+	#[\Override]
 	public function isEnabledForUser(): bool {
 		$user = $this->userSession->getUser();
 		if ($user === null) {
