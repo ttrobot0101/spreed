@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
       matrix:
         test-suite: ['callapi', 'chat-1', 'chat-2', 'chat-3', 'chat-4', 'command', 'conversation-1', 'conversation-2', 'conversation-3', 'conversation-4', 'conversation-5', 'federation', 'integration', 'sharing-1', 'sharing-2', 'sharing-3', 'sharing-4']
-        php-versions: ['8.2']
+        php-versions: ['8.3']
         server-versions: ['master']
         guests-versions: ['main']
         circles-versions: ['master']
@@ -122,7 +122,7 @@ jobs:
           ref: ${{ matrix.password-policy-versions }}
 
       - name: Set up php ${{ matrix.php-versions }}
-        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2.37.1
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
         with:
           php-version: ${{ matrix.php-versions }}
           # https://docs.nextcloud.com/server/stable/admin_manual/installation/source_installation.html#prerequisites-for-manual-installation
