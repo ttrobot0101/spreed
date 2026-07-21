@@ -187,6 +187,7 @@ class RoomController extends AEnvironmentAwareOCSController {
 			$this->config->getAppValue('spreed', 'recording_servers'),
 			$this->config->getAppValue('spreed', 'allowed_groups'),
 			$this->config->getAppValue('spreed', 'start_calls'),
+			$this->config->getAppValue('spreed', 'start_calls_groups'),
 			$this->config->getAppValue('spreed', 'start_conversations'),
 			$this->config->getAppValue('spreed', 'default_permissions'),
 			$this->config->getAppValue('spreed', 'breakout_rooms'),
@@ -821,10 +822,6 @@ class RoomController extends AEnvironmentAwareOCSController {
 		if ($invitationList->hasInvalidInvitations() && !$invitationList->hasValidInvitations()) {
 			// FIXME add the list of failed invitations?
 			return new DataResponse(['error' => 'invite'], Http::STATUS_NOT_FOUND);
-		}
-
-		if (!empty($invitationList->getEmails())) {
-			$roomType = Room::TYPE_PUBLIC;
 		}
 
 		if (in_array($objectType, [
