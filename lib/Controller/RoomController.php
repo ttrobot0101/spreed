@@ -176,7 +176,7 @@ class RoomController extends AEnvironmentAwareOCSController {
 		$values = [
 			$this->config->getSystemValueString('version'),
 			$this->config->getAppValue('spreed', 'installed_version'),
-			$this->config->getAppValue('spreed', 'stun_servers'),
+			implode(',', $this->appConfig->getAppValueArray(Config::STUN_SERVERS)),
 			$this->config->getAppValue('spreed', 'turn_servers'),
 			$this->config->getAppValue('spreed', 'signaling_servers'),
 			$this->config->getAppValue('spreed', 'signaling_ticket_secret'),
@@ -188,8 +188,8 @@ class RoomController extends AEnvironmentAwareOCSController {
 			implode(',', $this->appConfig->getAppValueArray(Config::ALLOWED_GROUPS_TALK)),
 			$this->config->getAppValue('spreed', 'start_calls'),
 			$this->config->getAppValue('spreed', 'start_calls_groups'),
-			$this->config->getAppValue('spreed', 'start_conversations'),
-			$this->config->getAppValue('spreed', 'default_permissions'),
+			implode(',', $this->appConfig->getAppValueArray(Config::ALLOWED_GROUPS_CONVERSATIONS)),
+			$this->appConfig->getAppValueInt(Config::DEFAULT_ROOM_PERMISSIONS),
 			$this->appConfig->getAppValueBool(Config::BREAKOUT_ROOMS_ENABLED),
 			$this->config->getAppValue('spreed', 'federation_enabled'),
 			$this->config->getAppValue('spreed', 'enable_matterbridge'),
@@ -864,6 +864,10 @@ class RoomController extends AEnvironmentAwareOCSController {
 				allowInternalTypes: $allowInternalTypes,
 			);
 		} catch (CreationException $e) {
+			$room = $e->getRoom();
+			if ($room instanceof Room) {
+				return new DataResponse($this->formatRoom($room, $this->participantService->getParticipant($room, $actorUserId, false)), Http::STATUS_OK);
+			}
 			return new DataResponse(['error' => $e->getReason()], Http::STATUS_BAD_REQUEST);
 		} catch (PasswordException $e) {
 			return new DataResponse(['error' => 'password', 'message' => $e->getHint()], Http::STATUS_BAD_REQUEST);
