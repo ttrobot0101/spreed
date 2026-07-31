@@ -136,6 +136,8 @@ class Capabilities implements IPublicCapability {
 		'conversation-tags',
 		'preserve-conversation',
 		'bot-features-api',
+		'classified-conversations',
+		'announcement-preset',
 	];
 
 	public const CONDITIONAL_FEATURES = [
@@ -172,6 +174,8 @@ class Capabilities implements IPublicCapability {
 		'conversation-tags',
 		'recording-chunked-upload',
 		'bot-features-api',
+		'classified-conversations',
+		'announcement-preset',
 	];
 
 	public const LOCAL_CONFIGS = [
@@ -315,6 +319,7 @@ class Capabilities implements IPublicCapability {
 					'retention-event' => max(0, $this->appConfig->getAppValueInt('retention_event_rooms', 28)),
 					'retention-phone' => max(0, $this->appConfig->getAppValueInt('retention_phone_rooms', 7)),
 					'retention-instant-meetings' => max(0, $this->appConfig->getAppValueInt('retention_instant_meetings', 1)),
+					'retention-classified' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_CLASSIFIED_ROOMS)),
 				],
 				'federation' => [
 					'enabled' => false,
@@ -331,7 +336,7 @@ class Capabilities implements IPublicCapability {
 					// 'hello-v2-token-key' => string,
 				],
 				'experiments' => [
-					'enabled' => max(0, $this->appConfig->getAppValueInt($user instanceof IUser ? 'experiments_users' : 'experiments_guests')),
+					'enabled' => max(0, $this->appConfig->getAppValueInt($user instanceof IUser ? Config::EXPERIMENTS_USERS : Config::EXPERIMENTS_GUESTS)),
 				],
 				'feature-hints' => [
 					'current' => Config::FEATURE_HINT,
