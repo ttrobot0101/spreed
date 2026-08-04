@@ -76,7 +76,7 @@ const participants = computed<IUserData[]>(() => {
 		.map(({ actorId, displayName, actorType }: { actorId: string, displayName: string, actorType: string }) => ({
 			id: actorId,
 			displayName,
-			isNoUser: actorType !== 'users',
+			isNoUser: actorType !== ATTENDEE.ACTOR_TYPE.USERS,
 			user: actorId,
 			disableMenu: true,
 			showUserStatus: false,
@@ -253,7 +253,7 @@ watch([searchText, fromUser, sinceDate, untilDate], debounceFetchSearchResults)
 						ref="searchBox"
 						v-model:value="searchText"
 						v-model:isFocused="isFocused"
-						:placeholderText="t('spreed', 'Search messages …')" />
+						:placeholderText="t('spreed', 'Search messages')" />
 					<NcButton
 						v-model:pressed="searchDetailsOpened"
 						:aria-label="t('spreed', 'Search options')"

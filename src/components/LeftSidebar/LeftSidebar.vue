@@ -16,6 +16,7 @@
 								ref="searchBox"
 								v-model:value="searchText"
 								v-model:isFocused="isFocused"
+								:placeholderText="t('spreed', 'Search in app')"
 								:listRef="[scroller, searchResultsPossibleConversations]"
 								@input="debounceFetchSearchResults"
 								@abortSearch="abortSearch" />
@@ -445,7 +446,7 @@ import OpenConversationsList from './OpenConversationsList/OpenConversationsList
 import SearchConversationsResults from './SearchConversationsResults/SearchConversationsResults.vue'
 import { useArrowNavigation } from '../../composables/useArrowNavigation.js'
 import { useGetToken } from '../../composables/useGetToken.ts'
-import { ATTENDEE, CONVERSATION } from '../../constants.ts'
+import { ATTENDEE, CONVERSATION, SIGNALING } from '../../constants.ts'
 import BrowserStorage from '../../services/BrowserStorage.js'
 import {
 	getTalkConfig,
@@ -1063,7 +1064,7 @@ export default {
 				// you are not currently active in, will not be removed anymore,
 				// as there is no signaling message about it when the internal
 				// signaling is used.
-				if (getTalkConfig('local', 'signaling', 'mode') !== 'internal') {
+				if (getTalkConfig('local', 'signaling', 'mode') !== SIGNALING.MODE.INTERNAL) {
 					if (response?.headers && response.headers['x-nextcloud-talk-modified-before']) {
 						this.roomListModifiedBefore = response.headers['x-nextcloud-talk-modified-before']
 					}
