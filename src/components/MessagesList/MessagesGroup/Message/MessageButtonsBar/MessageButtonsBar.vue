@@ -233,17 +233,21 @@
 						</template>
 						{{ t('spreed', 'Forward message') }}
 					</NcActionButton>
-					<NcActionSeparator v-if="messageActions.length > 0" />
+					<!-- External message actions registered by other apps are hidden
+						in classified conversations to prevent leaking message content -->
+					<template v-if="!isClassified && messageActions.length > 0">
+						<NcActionSeparator />
+						<NcActionButton
+							v-for="action in messageActions"
+							:key="action.label"
+							:icon="action.icon"
+							closeAfterClick
+							@click="handleMessageAction(action)">
+							{{ action.label }}
+						</NcActionButton>
+					</template>
 					<NcActionButton
-						v-for="action in messageActions"
-						:key="action.label"
-						:icon="action.icon"
-						closeAfterClick
-						@click="handleMessageAction(action)">
-						{{ action.label }}
-					</NcActionButton>
-					<NcActionButton
-						v-if="isTranslationAvailable && !isFileShareWithoutCaption"
+						v-if="isTranslationAvailable && !isFileShareWithoutCaption && !isClassified"
 						key="translate-message"
 						closeAfterClick
 						@click="handleTranslateMessage">
@@ -466,10 +470,12 @@ import { useChatExtrasStore } from '../../../../../stores/chatExtras.ts'
 import { useIntegrationsStore } from '../../../../../stores/integrations.js'
 import { useReactionsStore } from '../../../../../stores/reactions.js'
 import { useSharedItemsStore } from '../../../../../stores/sharedItems.ts'
+import { isClassifiedConversation } from '../../../../../utils/conversation.ts'
 import { generatePublicShareDownloadUrl, generateUserFileUrl, generateUserFolderUrl } from '../../../../../utils/davUtils.ts'
 import { convertToUnix, formatDateTime, ONE_DAY_IN_MS } from '../../../../../utils/formattedTime.ts'
 import { getCustomDateOptions } from '../../../../../utils/getCustomDateOptions.ts'
 import { copyConversationLinkToClipboard } from '../../../../../utils/handleUrl.ts'
+import { getFileKeys } from '../../../../../utils/message.ts'
 import { parseMentions } from '../../../../../utils/textParse.ts'
 
 const PIN_DURATION_OPTIONS = [
@@ -651,6 +657,10 @@ export default {
 			return this.getMessagesListScroller()
 		},
 
+		isClassified() {
+			return isClassifiedConversation(this.conversation)
+		},
+
 		isPrivateReplyable() {
 			return this.message.isReplyable
 				&& (this.conversation.type === CONVERSATION.TYPE.PUBLIC
@@ -658,10 +668,11 @@ export default {
 				&& !this.isCurrentUserOwnMessage
 				&& this.message.actorType === ATTENDEE.ACTOR_TYPE.USERS
 				&& !this.isCurrentGuest
+				&& !this.isClassified
 		},
 
 		messageFile() {
-			const firstFileKey = (Object.keys(this.message.messageParameters).find((key) => key.startsWith('file')))
+			const firstFileKey = getFileKeys(this.message).at(0)
 			return this.message.messageParameters[firstFileKey]
 		},
 
@@ -703,6 +714,7 @@ export default {
 				&& !this.isFileShare
 				&& !this.isDeletedMessage
 				&& !this.isPollMessage
+				&& !this.isClassified
 		},
 
 		messageDateTime() {
