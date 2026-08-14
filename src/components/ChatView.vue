@@ -56,9 +56,6 @@
 			:token="token"
 			hasTypingIndicator
 			:aria-label="t('spreed', 'Post message')" />
-
-		<!-- File upload dialog -->
-		<NewMessageUploadEditor />
 	</div>
 </template>
 
@@ -74,19 +71,18 @@ import IconChevronDoubleDown from 'vue-material-design-icons/ChevronDoubleDown.v
 import GuestWelcomeWindow from './GuestWelcomeWindow.vue'
 import MessagesList from './MessagesList/MessagesList.vue'
 import NewMessage from './NewMessage/NewMessage.vue'
-import NewMessageUploadEditor from './NewMessage/NewMessageUploadEditor.vue'
 import ThreadHeader from './RightSidebar/Threads/ThreadHeader.vue'
 import TransitionWrapper from './UIShared/TransitionWrapper.vue'
 import IconFileUpload from '../../img/material-icons/file-upload.svg?raw'
 import { useGetThreadId } from '../composables/useGetThreadId.ts'
 import { useGetToken } from '../composables/useGetToken.ts'
+import { useUploadFiles } from '../composables/useUploadFiles.ts'
 import { CONVERSATION, PARTICIPANT } from '../constants.ts'
 import { getTalkConfig } from '../services/CapabilitiesManager.ts'
 import { EventBus } from '../services/EventBus.ts'
 import { useActorStore } from '../stores/actor.ts'
 import { useChatExtrasStore } from '../stores/chatExtras.ts'
 import { useSettingsStore } from '../stores/settings.ts'
-import { useUploadStore } from '../stores/upload.ts'
 
 export default {
 
@@ -99,7 +95,6 @@ export default {
 		NcIconSvgWrapper,
 		MessagesList,
 		NewMessage,
-		NewMessageUploadEditor,
 		TransitionWrapper,
 		GuestWelcomeWindow,
 		// icons
@@ -122,14 +117,18 @@ export default {
 
 	setup(props) {
 		provide('chatView:isSidebar', props.isSidebar)
+
+		const token = useGetToken()
+		const { addFiles } = useUploadFiles(token)
+
 		return {
 			IconFileUpload,
-			token: useGetToken(),
+			token,
 			threadId: useGetThreadId(),
 			chatExtrasStore: useChatExtrasStore(),
 			actorStore: useActorStore(),
 			settingsStore: useSettingsStore(),
-			uploadStore: useUploadStore(),
+			addFiles,
 		}
 	},
 
@@ -219,12 +218,8 @@ export default {
 			if (this.isGuest || this.isReadOnly) {
 				return
 			}
-			// Get the files from the event
-			const files = Object.values(event.dataTransfer.files)
-			// Create a unique id for the upload operation
-			const uploadId = new Date().getTime()
-			// Uploads and shares the files
-			this.uploadStore.initialiseUpload({ files, token: this.token, threadId: this.threadId, uploadId })
+			// Stage the files, they are uploaded and shared on submit
+			this.addFiles(Object.values(event.dataTransfer.files))
 		},
 
 		scrollToBottom() {

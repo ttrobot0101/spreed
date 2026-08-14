@@ -79,11 +79,12 @@
 			v-if="isUploadEditor"
 			class="remove-file"
 			tabindex="1"
-			variant="primary"
+			variant="secondary"
+			size="small"
 			:aria-label="removeAriaLabel"
 			@click.stop.prevent="handleClick">
 			<template #icon>
-				<IconClose />
+				<IconClose :size="20" />
 			</template>
 		</NcButton>
 		<div v-if="shouldShowFileDetail" class="name-container">
@@ -762,16 +763,45 @@ export default {
 		}
 	}
 
-	&--upload-editor {
-		max-width: 140px;
-		max-height: 140px;
-		padding: 12px 12px 24px 12px;
-		margin: 10px;
+	// Both the upload editor and a message with combined file shares show a grid
+	// of tiles of the same size. --preview-size and --preview-name-height define sizes.
+	// The file name is not shown for every file, but its space is always reserved.
+	&--upload-editor,
+	.message-main--combined-files & {
+		width: var(--preview-size, 80px);
+		height: calc(var(--preview-size, 80px) + var(--preview-name-height, 24px));
 
-		.preview {
-			margin: auto;
-			width: 128px;
-			height: 128px;
+		// A file without a preview gets an inline 128px size on the container
+		// and a min-height on the icon. Both are overridden, so that every
+		// tile keeps the same size
+		.image-container {
+			width: var(--preview-size, 80px) !important;
+			height: var(--preview-size, 80px) !important;
+		}
+
+		// The size class of the image varies with the preview type, so it is
+		// matched by the class every variant shares
+		.file-preview__image {
+			width: 100%;
+			height: 100%;
+			min-height: unset;
+			max-height: none;
+		}
+
+		// Fixed, so that the height of the tile stays the same for every font
+		.name-container {
+			height: var(--preview-name-height, 24px);
+			font-weight: normal;
+			font-size: var(--font-size-small);
+		}
+	}
+
+	&--upload-editor {
+		padding: var(--preview-padding, 8px);
+		margin: var(--default-grid-baseline);
+
+		.image-container {
+			outline: 1px solid var(--color-border);
 		}
 	}
 
@@ -792,6 +822,22 @@ export default {
 		}
 	}
 
+	.message-main--combined-files & {
+		// Same thumbnail size as in the upload editor
+		--preview-size: 80px;
+		--preview-name-height: 24px;
+		// Align inline elements to the top, so looks even next to files with filename
+		vertical-align: top;
+
+		.file-preview__image {
+			border-radius: var(--border-radius);
+
+			&.mimeicon {
+				object-fit: contain;
+			}
+		}
+	}
+
 	&--shared-items-grid {
 		aspect-ratio: 1;
 		line-height: 0;
@@ -807,8 +853,10 @@ export default {
 .remove-file {
 	visibility: hidden;
 	position: absolute !important;
-	top: 8px;
-	inset-inline-end: 8px;
+	// Overhang the top corner of the preview by 4px.
+	// The tile padding is 8px, so the offsets are that padding less the overhang
+	top: 4px;
+	inset-inline-end: 4px;
 }
 
 </style>
