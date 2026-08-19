@@ -11,7 +11,6 @@
 			'message-main--sided': isSplitViewEnabled && !isSystemMessage,
 			'message-main--compressed': isSplitViewEnabled && isShortSimpleMessage,
 			'message-main--compressed-system': isSplitViewEnabled && isSystemMessage,
-			'message-main--combined-files': hasCombinedFiles,
 		}">
 		<p
 			v-if="isThreadStarterMessage"
@@ -66,8 +65,12 @@
 			<!-- Replied parent message -->
 			<MessageQuote v-if="showQuote" :message="message.parent" />
 
+			<!-- File previews, rendered as a block on top of the (optional) caption -->
+			<FilePreviewsWrapper v-if="hasFilePreviews" :message="message" />
+
 			<!-- Message content / text -->
 			<NcRichText
+				v-if="!isFileShareWithoutCaption || !hasFilePreviews"
 				:text="renderedMessage"
 				:arguments="richParameters"
 				:class="{ 'single-emoji': isSingleEmoji }"
@@ -84,7 +87,11 @@
 		<div
 			v-if="!isDeletedMessage"
 			class="message-main__info">
-			<span v-if="isSplitViewEnabled && isOwnMessage && message.lastEditTimestamp" class="editor">
+			<span
+				v-if="message.lastEditTimestamp"
+				class="editor"
+				:aria-label="lastEditor"
+				:title="lastEditor">
 				<IconPencilOutline :size="14" />
 				<AvatarWrapper
 					v-if="isEditorDifferentThenAuthor"
@@ -202,6 +209,7 @@ import AvatarWrapper from '../../../../AvatarWrapper/AvatarWrapper.vue'
 import MessageQuote from '../../../../MessageQuote.vue'
 import CallButton from '../../../../TopBar/CallButton.vue'
 import ConversationActionsShortcut from '../../../../UIShared/ConversationActionsShortcut.vue'
+import FilePreviewsWrapper from './FilePreviewsWrapper.vue'
 import PollCard from './PollCard.vue'
 import { useGetThreadId } from '../../../../../composables/useGetThreadId.ts'
 import { useIsInCall } from '../../../../../composables/useIsInCall.js'
@@ -214,7 +222,7 @@ import { useChatExtrasStore } from '../../../../../stores/chatExtras.ts'
 import { usePollsStore } from '../../../../../stores/polls.ts'
 import { useUploadStore } from '../../../../../stores/upload.ts'
 import { formatDateTime } from '../../../../../utils/formattedTime.ts'
-import { getFileKeys } from '../../../../../utils/message.ts'
+import { getFileKeys, getFilePreviewKeys, isFilePreviewParameter } from '../../../../../utils/message.ts'
 import { parseMentions, parseSpecialSymbols } from '../../../../../utils/textParse.ts'
 
 // Regular expression to check for Unicode emojis in message text
@@ -229,6 +237,7 @@ export default {
 	components: {
 		AvatarWrapper,
 		CallButton,
+		FilePreviewsWrapper,
 		NcButton,
 		NcRichText,
 		PollCard,
@@ -295,6 +304,7 @@ export default {
 			isEditable,
 			isFileShare,
 			isFileShareWithoutCaption,
+			lastEditor,
 		} = useMessageInfo(message)
 		const threadId = useGetThreadId()
 		const isSidebar = inject('chatView:isSidebar', false)
@@ -309,6 +319,7 @@ export default {
 			isEditable,
 			isFileShare,
 			isFileShareWithoutCaption,
+			lastEditor,
 			isSidebar,
 			actorStore: useActorStore(),
 			isSplitViewEnabled,
@@ -323,8 +334,8 @@ export default {
 	},
 
 	computed: {
-		hasCombinedFiles() {
-			return getFileKeys(this.message).length > 1
+		hasFilePreviews() {
+			return getFilePreviewKeys(this.message).length > 0
 		},
 
 		showQuote() {
@@ -332,16 +343,15 @@ export default {
 		},
 
 		renderedMessage() {
-			if (this.isFileShare) {
-				if (this.isFileShareWithoutCaption) {
-					return this.message.message
-				}
-				// Add a new line after file to split content into different paragraphs
-				const filePlaceholdersString = getFileKeys(this.message).map((key) => `{${key}}`).join(' ')
-				return filePlaceholdersString + '\n\n' + this.message.message
+			// File previews are rendered separately, as a block on top of this text (see FilePreviewsWrapper)
+			if (this.isFileShare && !this.isFileShareWithoutCaption) {
+				// Contact cards with mimetype 'text/vcard' are rendered here.
+				// In case of caption present, placeholder should be put before it.
+				const vcardKey = getFileKeys(this.message).find((key) => !isFilePreviewParameter(key, this.message.messageParameters[key]))
+				return vcardKey ? `{${vcardKey}}\n\n${this.message.message}` : this.message.message
 			} else if (this.isLocationMessageWithName) {
 				return this.message.message + '\n\n' + this.message.messageParameters.object.name
-			} {
+			} else {
 				return this.message.message
 			}
 		},
@@ -503,9 +513,8 @@ export default {
 
 		isEditorDifferentThenAuthor() {
 			return this.message.lastEditActorId
-				&& this.message.lastEditActorId !== this.message.actorId
-				&& this.message.lastEditActorDisplayName !== this.message.actorDisplayName
-				&& this.message.lastEditActorType !== this.message.actorType
+				&& !(this.message.lastEditActorId === this.message.actorId
+					&& this.message.lastEditActorType === this.message.actorType)
 		},
 
 		isMessagePinned() {
@@ -617,7 +626,8 @@ export default {
 	min-height: var(--clickable-area-small);
 	min-width: 100%;
 	// Layout 1 (standard view): text and info in two columns
-	grid-template-columns: minmax(0, $messages-text-max-width) $messages-info-width;
+	// Info column grows past its minimum to fit the edited-message icon, so it never overlaps the text column
+	grid-template-columns: minmax(0, $messages-text-max-width) minmax($messages-info-width, max-content);
 	row-gap: var(--default-grid-baseline);
 
 	& .message-main__thread-title,
@@ -670,6 +680,7 @@ export default {
 		.message-main__info {
 			opacity: 0;
 			width: auto;
+			min-width: 0;
 			font-size: var(--font-size-small);
 
 			&::before {
@@ -689,13 +700,10 @@ export default {
 			align-items: end;
 			font-size: var(--font-size-small);
 			width: auto;
+			min-width: 0;
 
 			.editor {
-				display: inline-flex;
-				align-items: center;
 				margin-inline-end: var(--default-grid-baseline);
-				gap: calc(var(--default-grid-baseline) / 2);
-				height: 1lh;
 			}
 		}
 
@@ -769,6 +777,10 @@ export default {
 		&.markdown-message {
 			position: relative;
 
+			:deep(.file-previews-wrapper:has(+ .rich-text--wrapper)) {
+				margin-block-end: 1em;
+			}
+
 			:deep(.rich-text--wrapper) {
 				// NcRichText is used with dir="auto", so internal text direction may vary
 				// But we want to keep the alignment consistent with the rest of the UI
@@ -805,12 +817,24 @@ export default {
 		position: relative;
 		user-select: none;
 		display: flex;
+		align-items: center;
 		justify-content: flex-end;
 		color: var(--color-text-maxcontrast);
 		font-size: var(--default-font-size);
-		width: $messages-info-width;
+		min-width: $messages-info-width;
 		gap: calc(var(--default-grid-baseline) / 2);
 		padding-inline: calc(2 * var(--default-grid-baseline));
+
+		.editor {
+			display: inline-flex;
+			align-items: center;
+			gap: calc(var(--default-grid-baseline) / 2);
+			height: 1lh;
+
+			:deep(.avatar-wrapper) {
+				line-height: 0;
+			}
+		}
 
 		.date {
 			width: 8ch;
