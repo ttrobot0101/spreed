@@ -68,6 +68,7 @@ class Config {
 	public const string EXPERIMENTS_USERS = 'experiments_users';
 	public const string EXPERIMENTS_GUESTS = 'experiments_guests';
 	public const string CALL_END_TO_END_ENCRYPTION = 'call_end_to_end_encryption';
+	public const string CALL_RECORDING_SUMMARY_PROMPT = 'call_recording_summary_prompt';
 	public const string FORCE_PASSWORDS = 'force_passwords';
 	public const string BACKGROUNDS_BRANDED_FOR_GUESTS = 'backgrounds_branded_for_guests';
 	public const string BACKGROUNDS_DEFAULT_FOR_USERS = 'backgrounds_default_for_useres';
@@ -75,6 +76,7 @@ class Config {
 	public const string CREATE_SAMPLES = 'create_samples';
 	public const string MATTERBRIDGE_ENABLED = 'enable_matterbridge';
 	public const string DELETE_ONE_TO_ONE_CONVERSATIONS = 'delete_one_to_one_conversations';
+	public const string MAX_GIF_SIZE = 'max_gif_size';
 
 	/**
 	 * 1. Call recording, …
