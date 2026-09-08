@@ -137,9 +137,16 @@ updates:
     time: "03:00"
     timezone: Europe/Berlin
   groups:
+    vitest:
+      patterns:
+        - "vitest"
+        - "@vitest/coverage-*"
     vueuse:
       patterns:
         - "@vueuse/*"
+    rspack:
+      patterns:
+        - "@rspack/*"
   cooldown:
     default-days: 4
     exclude:
@@ -162,9 +169,16 @@ updates:
     - dependency-name: "*"
       update-types: ["version-update:semver-major"]
   groups:
+    vitest:
+      patterns:
+        - "vitest"
+        - "@vitest/coverage-*"
     vueuse:
       patterns:
         - "@vueuse/*"
+    rspack:
+      patterns:
+        - "@rspack/*"
   cooldown:
     default-days: 4
     exclude:
@@ -190,6 +204,9 @@ updates:
     vueuse:
       patterns:
         - "@vueuse/*"
+    rspack:
+      patterns:
+        - "@rspack/*"
   cooldown:
     default-days: 4
     exclude:
@@ -215,6 +232,9 @@ updates:
     vueuse:
       patterns:
         - "@vueuse/*"
+    rspack:
+      patterns:
+        - "@rspack/*"
   cooldown:
     default-days: 4
     exclude:
@@ -240,6 +260,9 @@ updates:
     vueuse:
       patterns:
         - "@vueuse/*"
+    rspack:
+      patterns:
+        - "@rspack/*"
   cooldown:
     default-days: 4
     exclude:
