@@ -291,7 +291,7 @@ class Capabilities implements IPublicCapability {
 					'default-phone-region' => $this->serverConfig->getSystemValueString('default_phone_region'),
 					'can-enable-sip' => false,
 					'start-without-media' => $this->talkConfig->getCallsStartWithoutMedia($user?->getUID()),
-					'max-duration' => $this->appConfig->getAppValueInt('max_call_duration'),
+					'max-duration' => $this->appConfig->getAppValueInt(Config::MAX_CALL_DURATION),
 					'blur-virtual-background' => $this->talkConfig->getBlurVirtualBackground($user?->getUID()),
 					'end-to-end-encryption' => $this->talkConfig->isCallEndToEndEncryptionEnabled(),
 					'live-transcription' => $this->isLiveTranscriptionSupported(),
@@ -317,9 +317,9 @@ class Capabilities implements IPublicCapability {
 					'sort-order' => $this->talkConfig->getConversationsSortOrder($user?->getUID()),
 					'group-mode' => $this->talkConfig->getConversationsGroupMode($user?->getUID()),
 					'description-length' => Room::DESCRIPTION_MAXIMUM_LENGTH,
-					'retention-event' => max(0, $this->appConfig->getAppValueInt('retention_event_rooms', 28)),
-					'retention-phone' => max(0, $this->appConfig->getAppValueInt('retention_phone_rooms', 7)),
-					'retention-instant-meetings' => max(0, $this->appConfig->getAppValueInt('retention_instant_meetings', 1)),
+					'retention-event' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_EVENT_ROOMS)),
+					'retention-phone' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_PHONE_ROOMS)),
+					'retention-instant-meetings' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_INSTANT_MEETINGS)),
 					'retention-classified' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_CLASSIFIED_ROOMS)),
 				],
 				'federation' => [
@@ -341,7 +341,7 @@ class Capabilities implements IPublicCapability {
 				],
 				'feature-hints' => [
 					'current' => Config::FEATURE_HINT,
-					'hidden' => max(0, $this->appConfig->getAppValueInt('feature_hints_hidden')),
+					'hidden' => max(0, $this->appConfig->getAppValueInt(Config::FEATURE_HINTS_HIDDEN)),
 				],
 				'permissions' => [
 					'max-default' => Attendee::PERMISSIONS_MAX_DEFAULT,

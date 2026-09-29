@@ -81,6 +81,12 @@ class Config {
 	public const string TOKEN_ENTROPY = 'token_entropy';
 	public const string SUMMARY_THRESHOLD = 'summary_threshold';
 	public const string ALLOWED_START_CALLS = 'start_calls';
+	public const string SAMPLES_DIRECTORY = 'samples_directory';
+	public const string RETENTION_EVENT_ROOMS = 'retention_event_rooms';
+	public const string RETENTION_PHONE_ROOMS = 'retention_phone_rooms';
+	public const string RETENTION_INSTANT_MEETINGS = 'retention_instant_meetings';
+	public const string MAX_CALL_DURATION = 'max_call_duration';
+	public const string FEATURE_HINTS_HIDDEN = 'feature_hints_hidden';
 
 	/**
 	 * 1. Call recording, …
