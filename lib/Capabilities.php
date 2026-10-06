@@ -211,6 +211,7 @@ class Capabilities implements IPublicCapability {
 			'list-style',
 			'sort-order',
 			'group-mode',
+			'unarchive',
 			'description-length',
 		],
 		'federation' => [
@@ -316,6 +317,7 @@ class Capabilities implements IPublicCapability {
 					'list-style' => $this->talkConfig->getConversationsListStyle($user?->getUID()),
 					'sort-order' => $this->talkConfig->getConversationsSortOrder($user?->getUID()),
 					'group-mode' => $this->talkConfig->getConversationsGroupMode($user?->getUID()),
+					'unarchive' => $this->talkConfig->getConversationsUnarchive($user?->getUID()),
 					'description-length' => Room::DESCRIPTION_MAXIMUM_LENGTH,
 					'retention-event' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_EVENT_ROOMS)),
 					'retention-phone' => max(0, $this->appConfig->getAppValueInt(Config::RETENTION_PHONE_ROOMS)),
@@ -332,7 +334,7 @@ class Capabilities implements IPublicCapability {
 					'max-gif-size' => $this->appConfig->getAppValueInt(Config::MAX_GIF_SIZE, 3145728),
 				],
 				'signaling' => [
-					'session-ping-limit' => max(0, (int)$this->serverConfig->getAppValue('spreed', 'session-ping-limit', '200')),
+					'session-ping-limit' => max(0, $this->appConfig->getAppValueInt(Config::SESSION_PING_LIMIT)),
 					'mode' => $this->talkConfig->getSignalingMode(),
 					// 'hello-v2-token-key' => string,
 				],

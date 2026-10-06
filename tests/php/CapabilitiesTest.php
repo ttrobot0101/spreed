@@ -110,6 +110,9 @@ class CapabilitiesTest extends TestCase {
 		$this->talkConfig->method('getConversationsGroupMode')
 			->willReturn('none');
 
+		$this->talkConfig->method('getConversationsUnarchive')
+			->willReturn('never');
+
 		$this->talkConfig->expects($this->once())
 			->method('isBreakoutRoomsEnabled')
 			->willReturn(false);
@@ -139,7 +142,6 @@ class CapabilitiesTest extends TestCase {
 		$this->serverConfig->expects($this->any())
 			->method('getAppValue')
 			->willReturnMap([
-				['spreed', 'session-ping-limit', '200', '200'],
 				['core', 'backgroundjobs_mode', 'ajax', 'cron'],
 			]);
 
@@ -155,7 +157,8 @@ class CapabilitiesTest extends TestCase {
 				['feature_hints_hidden', 0, 999],
 				['feature_hints_hidden', 999],
 				['max_gif_size', 3145728, 200000],
-				['start_calls', Room::START_CALL_EVERYONE]
+				['start_calls', Room::START_CALL_EVERYONE],
+				['session_ping_limit', 200],
 			]);
 
 		$this->assertInstanceOf(IPublicCapability::class, $capabilities);
@@ -231,6 +234,7 @@ class CapabilitiesTest extends TestCase {
 						'list-style' => 'two-lines',
 						'sort-order' => 'activity',
 						'group-mode' => 'none',
+						'unarchive' => 'never',
 						'description-length' => 2000,
 						'retention-event' => 28,
 						'retention-phone' => 7,
@@ -336,6 +340,9 @@ class CapabilitiesTest extends TestCase {
 		$this->talkConfig->method('getConversationsGroupMode')
 			->willReturn('none');
 
+		$this->talkConfig->method('getConversationsUnarchive')
+			->willReturn('never');
+
 		$this->talkConfig->expects($this->any())
 			->method('getSignalingMode')
 			->willReturn('internal');
@@ -353,7 +360,6 @@ class CapabilitiesTest extends TestCase {
 		$this->serverConfig->expects($this->any())
 			->method('getAppValue')
 			->willReturnMap([
-				['spreed', 'session-ping-limit', '200', '50'],
 				['core', 'backgroundjobs_mode', 'ajax', 'cron'],
 			]);
 
@@ -364,7 +370,7 @@ class CapabilitiesTest extends TestCase {
 				['backgrounds_upload_users', true, true],
 			]);
 
-		$this->appConfig->method('getAppValueInt')
+		$this->appConfig->expects($this->any())->method('getAppValueInt')
 			->willReturnMap([
 				['max_call_duration', 0],
 				['retention_event_rooms', 28],
@@ -376,6 +382,7 @@ class CapabilitiesTest extends TestCase {
 				['feature_hints_hidden', 1],
 				['max_gif_size', 3145728, 200000],
 				['start_calls', Room::START_CALL_NOONE],
+				['session_ping_limit', 50],
 			]);
 
 		$this->serverConfig->expects($this->any())
@@ -460,6 +467,7 @@ class CapabilitiesTest extends TestCase {
 						'list-style' => 'two-lines',
 						'sort-order' => 'activity',
 						'group-mode' => 'none',
+						'unarchive' => 'never',
 						'description-length' => 2000,
 						'retention-event' => 28,
 						'retention-phone' => 7,
