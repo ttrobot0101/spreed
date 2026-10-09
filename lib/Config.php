@@ -75,6 +75,8 @@ class Config {
 	public const string BACKGROUNDS_UPLOAD_USERS = 'backgrounds_upload_users';
 	public const string CREATE_SAMPLES = 'create_samples';
 	public const string MATTERBRIDGE_ENABLED = 'enable_matterbridge';
+	public const string MATRIX_ENABLED = 'matrix_enabled';
+	public const string MATRIX_ALLOWED_GROUPS = 'matrix_allowed_groups';
 	public const string DELETE_ONE_TO_ONE_CONVERSATIONS = 'delete_one_to_one_conversations';
 	public const string MAX_GIF_SIZE = 'max_gif_size';
 	public const string CERTIFICATE_EXPIRATION_DAYS = 'certificate_expiration_days';
@@ -1053,6 +1055,32 @@ class Config {
 		}
 
 		return UserPreference::CONVERSATIONS_UNARCHIVE_NEVER;
+	}
+
+	/**
+	 * User setting when unread conversations are shown in collapsed conversation tags
+	 *
+	 * @param ?string $userId
+	 * @return UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD_*
+	 */
+	public function getConversationsTagsShowUnread(?string $userId): string {
+		if ($userId !== null) {
+			$userSetting = $this->config->getUserValue(
+				$userId,
+				'spreed',
+				UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD,
+			);
+
+			if (in_array($userSetting, [
+				UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD_NEVER,
+				UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD_MENTION,
+				UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD_ALWAYS,
+			], true)) {
+				return $userSetting;
+			}
+		}
+
+		return UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD_ALWAYS;
 	}
 
 	/**

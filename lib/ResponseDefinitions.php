@@ -302,6 +302,16 @@ namespace OCA\Talk;
  *     roomToken: string,
  * }
  *
+ * @psalm-type TalkMatrixHomeserver = array{
+ *     // SnowflakeID
+ *     id: numeric-string,
+ *     name: string,
+ *     serverName: string,
+ *     baseUrl: string,
+ *     enabled: bool,
+ *     specVersions: list<string>,
+ * }
+ *
  * @psalm-type TalkFederationInvite = array{
  *     // Identifier of the invitation
  *     id: int,
@@ -857,6 +867,8 @@ namespace OCA\Talk;
  *             group-mode: 'none'|'group-first'|'private-first',
  *             // User selected mode when archived conversations are unarchived automatically (see [constants list](https://nextcloud-talk.readthedocs.io/en/latest/constants#conversations-unarchive-mode))
  *             unarchive: 'never'|'mention'|'always',
+ *             // User selected mode when unread conversations are shown in collapsed conversation tags (see [constants list](https://nextcloud-talk.readthedocs.io/en/latest/constants#conversation-tags-show-unread-mode))
+ *             tags-show-unread: 'never'|'mention'|'always',
  *         },
  *         federation: array{
  *             // Whether federation is enabled
