@@ -27,6 +27,7 @@ import IconCheck from 'vue-material-design-icons/Check.vue'
 import IconContentSaveOutline from 'vue-material-design-icons/ContentSaveOutline.vue'
 import IconDeleteOutline from 'vue-material-design-icons/DeleteOutline.vue'
 import IconLanConnect from 'vue-material-design-icons/LanConnect.vue'
+import IconPencilOutline from 'vue-material-design-icons/PencilOutline.vue'
 import IconPlus from 'vue-material-design-icons/Plus.vue'
 import ConfirmDialog from '../UIShared/ConfirmDialog.vue'
 import { useActionStatus } from '../../composables/useActionStatus.ts'
@@ -121,7 +122,7 @@ async function saveAllowedGroups() {
 		await runAction('allowedGroups', () => updateMatrixSettings({ allowedGroups: allowedGroups.value.map((group) => group.id) }))
 	} catch (error) {
 		console.error(error)
-		showError(t('spreed', 'Could not save the groups'))
+		showError(t('spreed', 'Could not save allowed groups'))
 	} finally {
 		loading.value = false
 	}
@@ -137,7 +138,7 @@ async function loadHomeservers() {
 		homeservers.value = response.data.ocs.data
 	} catch (error) {
 		console.error(error)
-		showError(t('spreed', 'Could not load the homeservers'))
+		showError(t('spreed', 'Could not load homeservers'))
 	} finally {
 		loading.value = false
 	}
@@ -180,6 +181,30 @@ async function updateHomeserver(homeserver: MatrixHomeserver, changes: updateMat
 	} finally {
 		loading.value = false
 	}
+}
+
+/**
+ * Ask for a new name and rename a homeserver
+ *
+ * @param homeserver - homeserver to rename
+ */
+async function renameHomeserver(homeserver: MatrixHomeserver) {
+	const name = await spawnDialog(ConfirmDialog, {
+		// TRANSLATORS: Dialog title and button to change the name of a Matrix homeserver that people see
+		name: t('spreed', 'Edit label'),
+		isForm: true,
+		inputProps: { label: t('spreed', 'Label shown to people (optional)'), value: homeserver.name },
+		buttons: [
+			{ label: t('spreed', 'Cancel'), variant: 'tertiary', callback: () => undefined },
+			{ label: t('spreed', 'Save'), variant: 'primary', type: 'submit', callback: () => true },
+		],
+	})
+
+	if (typeof name !== 'string' || name === homeserver.name) {
+		return
+	}
+
+	await updateHomeserver(homeserver, { name })
 }
 
 /**
@@ -228,7 +253,11 @@ async function removeHomeserver(homeserver: MatrixHomeserver) {
 		homeservers.value = homeservers.value.filter((entry) => entry.id !== homeserver.id)
 	} catch (error) {
 		console.error(error)
-		showError(t('spreed', 'Could not remove the homeserver'))
+		if (isAxiosErrorResponse<{ error: string }>(error) && error.response?.data?.ocs?.data?.error === 'accounts') {
+			showError(t('spreed', 'The homeserver cannot be removed while people have accounts linked to it'))
+		} else {
+			showError(t('spreed', 'Could not remove the homeserver'))
+		}
 	} finally {
 		loading.value = false
 	}
@@ -258,8 +287,8 @@ async function removeHomeserver(homeserver: MatrixHomeserver) {
 
 			<template v-if="enabled">
 				<NcFormGroup
-					:label="t('spreed', 'Limit to groups (optional)')"
-					:description="t('spreed', 'By default everyone can link a Matrix account. When at least one group is selected, only members of the listed groups can.')">
+					:label="t('spreed', 'Limit to groups')"
+					:description="t('spreed', 'By default, everyone can link a Matrix account. When at least one group is selected, only members of the selected groups can.')">
 					<NcFormBox>
 						<NcSelect
 							v-model="allowedGroups"
@@ -281,7 +310,7 @@ async function removeHomeserver(homeserver: MatrixHomeserver) {
 							@open="searchGroup('')"
 							@search="debounceSearchGroup($event)" />
 						<NcFormBoxButton
-							:label="getActionStatus('allowedGroups') === 'success' ? t('spreed', 'Saved') : t('spreed', 'Save changes')"
+							:label="getActionStatus('allowedGroups') === 'success' ? t('spreed', 'Saved!') : t('spreed', 'Save changes')"
 							:disabled="loading"
 							@click="saveAllowedGroups">
 							<template #icon>
@@ -315,6 +344,15 @@ async function removeHomeserver(homeserver: MatrixHomeserver) {
 							<!-- TRANSLATORS: Switch to allow people to link accounts on this Matrix homeserver -->
 							{{ t('spreed', 'Enabled') }}
 						</NcFormBoxSwitch>
+						<NcFormBoxButton
+							:disabled="loading"
+							@click="renameHomeserver(homeserver)">
+							<!-- TRANSLATORS: Dialog title and button to change the name of a Matrix homeserver that people see -->
+							{{ t('spreed', 'Edit label') }}
+							<template #icon>
+								<IconPencilOutline :size="20" />
+							</template>
+						</NcFormBoxButton>
 						<NcFormBoxButton
 							:label="t('spreed', 'Test connection')"
 							:disabled="loading"

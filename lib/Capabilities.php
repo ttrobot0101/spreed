@@ -139,6 +139,7 @@ class Capabilities implements IPublicCapability {
 		'classified-conversations',
 		'announcement-preset',
 		'promote-demote-owner',
+		'matrix-rooms',
 	];
 
 	public const CONDITIONAL_FEATURES = [
@@ -177,6 +178,7 @@ class Capabilities implements IPublicCapability {
 		'bot-features-api',
 		'classified-conversations',
 		'announcement-preset',
+		'matrix-rooms',
 	];
 
 	public const LOCAL_CONFIGS = [
@@ -220,6 +222,9 @@ class Capabilities implements IPublicCapability {
 			'incoming-enabled',
 			'outgoing-enabled',
 			'only-trusted-servers',
+		],
+		'matrix' => [
+			'enabled',
 		],
 		'previews' => [
 			'max-gif-size',
@@ -331,6 +336,9 @@ class Capabilities implements IPublicCapability {
 					'incoming-enabled' => false,
 					'outgoing-enabled' => false,
 					'only-trusted-servers' => true,
+				],
+				'matrix' => [
+					'enabled' => $user instanceof IUser && $this->talkConfig->isMatrixEnabled(),
 				],
 				'previews' => [
 					'max-gif-size' => $this->appConfig->getAppValueInt(Config::MAX_GIF_SIZE, 3145728),

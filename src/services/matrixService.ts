@@ -6,10 +6,17 @@
 import type {
 	addMatrixHomeserverParams,
 	addMatrixHomeserverResponse,
+	checkMatrixConnectionResponse,
+	getMatrixAccountResponse,
 	getMatrixHomeserversResponse,
+	linkMatrixAccountParams,
+	linkMatrixAccountResponse,
 	MatrixHomeserver,
+	reloginMatrixAccountParams,
+	reloginMatrixAccountResponse,
 	removeMatrixHomeserverResponse,
 	testMatrixHomeserverResponse,
+	unlinkMatrixAccountResponse,
 	updateMatrixHomeserverParams,
 	updateMatrixHomeserverResponse,
 	updateMatrixSettingsParams,
@@ -72,11 +79,55 @@ async function updateMatrixSettings(payload: updateMatrixSettingsParams): update
 	return axios.put(generateOcsUrl('apps/spreed/api/v1/matrix/admin/settings'), payload)
 }
 
+/**
+ * Get the linked account and the homeservers an account can be linked on
+ */
+async function getMatrixAccount(): getMatrixAccountResponse {
+	return axios.get(generateOcsUrl('apps/spreed/api/v1/matrix/account'))
+}
+
+/**
+ * Link a Matrix account
+ *
+ * @param payload The homeserver id, Matrix user and password
+ */
+async function linkMatrixAccount(payload: linkMatrixAccountParams): linkMatrixAccountResponse {
+	return axios.post(generateOcsUrl('apps/spreed/api/v1/matrix/account'), payload)
+}
+
+/**
+ * Check the connection to the homeserver again
+ */
+async function checkMatrixConnection(): checkMatrixConnectionResponse {
+	return axios.post(generateOcsUrl('apps/spreed/api/v1/matrix/account/check'))
+}
+
+/**
+ * Log in again after the homeserver rejected the access token
+ *
+ * @param payload The Matrix password
+ */
+async function reloginMatrixAccount(payload: reloginMatrixAccountParams): reloginMatrixAccountResponse {
+	return axios.put(generateOcsUrl('apps/spreed/api/v1/matrix/account'), payload)
+}
+
+/**
+ * Unlink the Matrix account
+ */
+async function unlinkMatrixAccount(): unlinkMatrixAccountResponse {
+	return axios.delete(generateOcsUrl('apps/spreed/api/v1/matrix/account'))
+}
+
 export {
 	addMatrixHomeserver,
+	checkMatrixConnection,
+	getMatrixAccount,
 	getMatrixHomeservers,
+	linkMatrixAccount,
+	reloginMatrixAccount,
 	removeMatrixHomeserver,
 	testMatrixHomeserver,
+	unlinkMatrixAccount,
 	updateMatrixHomeserver,
 	updateMatrixSettings,
 }

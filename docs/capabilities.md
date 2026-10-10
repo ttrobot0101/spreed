@@ -239,3 +239,7 @@
 * `promote-demote-owner` - Whether owners can promote other participants to owner and demote other owners again, by sending the `participantType` parameter when promoting or demoting a participant
 * `config => conversations => unarchive` (local) - User selected mode when archived conversations are unarchived automatically (`never`, `mention` or `always`)
 * `config => conversations => tags-show-unread` (local) - User selected mode when unread conversations are shown in collapsed conversation tags (`never`, `mention` or `always`)
+
+## 26
+* `config => matrix => enabled` (local) - Whether the Matrix integration is enabled, so users can manage their linked Matrix account
+* `matrix-rooms` (local) - Whether Matrix rooms of linked Matrix accounts are mirrored as conversations with object type `matrix` and Matrix users without a Nextcloud account as attendees of type `matrix`. Messages, edits, deletions, reactions and read markers are sent to the Matrix room, end-to-end encrypted Matrix rooms are read-only
