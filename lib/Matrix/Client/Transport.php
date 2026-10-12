@@ -17,6 +17,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * Thin JSON transport over PSR-18. Knows the homeserver base URL, the access
@@ -100,11 +101,53 @@ final class Transport {
 	}
 
 	/**
+	 * Upload a file to the media repository
+	 *
+	 * @return string Content URI
+	 * @throws MatrixException
+	 */
+	public function upload(StreamInterface $content, string $contentType, string $fileName): string {
+		$request = $this->requestFactory->createRequest('POST', $this->baseUrl . '/_matrix/media/v3/upload?filename=' . rawurlencode($fileName))
+			->withHeader('Accept', 'application/json')
+			->withHeader('Content-Type', $contentType)
+			->withBody($content);
+		if ($this->accessToken !== null) {
+			$request = $request->withHeader('Authorization', 'Bearer ' . $this->accessToken);
+		}
+		try {
+			$response = $this->http->sendRequest($request);
+		} catch (ClientExceptionInterface $e) {
+			throw new TransportException('Homeserver unreachable: ' . $e->getMessage(), 0, '', [], $e);
+		}
+		if ($response->getStatusCode() >= 400) {
+			throw $this->toException($response);
+		}
+		return (string)($this->decode($response)['content_uri'] ?? '');
+	}
+
+	/**
+	 * Raw response of a GET request, the body is not read
+	 *
+	 * @throws MatrixException
+	 */
+	public function download(string $path): ResponseInterface {
+		return $this->send('GET', $path, null);
+	}
+
+	/**
 	 * @param array<string, mixed>|null $body
 	 * @return array<string, mixed>
 	 * @throws MatrixException
 	 */
 	private function request(string $method, string $path, ?array $body): array {
+		return $this->decode($this->send($method, $path, $body));
+	}
+
+	/**
+	 * @param array<string, mixed>|null $body
+	 * @throws MatrixException
+	 */
+	private function send(string $method, string $path, ?array $body): ResponseInterface {
 		$request = $this->requestFactory->createRequest($method, $this->baseUrl . $path)
 			->withHeader('Accept', 'application/json');
 		if ($this->accessToken !== null) {
@@ -125,7 +168,7 @@ final class Transport {
 		if ($response->getStatusCode() >= 400) {
 			throw $this->toException($response);
 		}
-		return $this->decode($response);
+		return $response;
 	}
 
 	/**
