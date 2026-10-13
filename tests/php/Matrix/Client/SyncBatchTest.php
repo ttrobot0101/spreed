@@ -55,6 +55,66 @@ class SyncBatchTest extends TestCase {
 		self::assertSame('Bob', $state->getMembers()['@bob:example.org']->getName());
 	}
 
+	public function testTimelineGapAndReadReceipts(): void {
+		$batch = SyncBatch::fromArray([
+			'next_batch' => 'next',
+			'rooms' => ['join' => ['!room:example.org' => [
+				'timeline' => ['events' => [], 'limited' => true, 'prev_batch' => 't42'],
+				'ephemeral' => ['events' => [
+					['type' => 'm.typing', 'content' => ['user_ids' => ['@bob:example.org']]],
+					['type' => 'm.receipt', 'content' => [
+						'$1' => ['m.read' => ['@bob:example.org' => ['ts' => 1], '@carol:example.org' => ['ts' => 2, 'thread_id' => 'main']]],
+						'$2' => ['m.read' => ['@bob:example.org' => ['ts' => 3, 'thread_id' => '$root']], 'm.read.private' => ['@alice:example.org' => ['ts' => 4]]],
+					]],
+				]],
+			]]],
+		]);
+
+		$joined = $batch->joined['!room:example.org'];
+		self::assertTrue($joined->limited);
+		self::assertSame('t42', $joined->prevBatch);
+		self::assertSame(['$1' => ['@bob:example.org', '@carol:example.org']], $joined->readReceipts);
+
+		$joined = SyncBatch::fromArray(['next_batch' => 'next', 'rooms' => ['join' => ['!room:example.org' => []]]])->joined['!room:example.org'];
+		self::assertFalse($joined->limited);
+		self::assertNull($joined->prevBatch);
+		self::assertSame([], $joined->readReceipts);
+	}
+
+	public function testAccountData(): void {
+		$batch = SyncBatch::fromArray([
+			'next_batch' => 'next',
+			'account_data' => ['events' => [
+				['type' => 'm.push_rules', 'content' => ['global' => ['room' => []]]],
+				['type' => 'invalid'],
+			]],
+		]);
+
+		self::assertSame(['m.push_rules' => ['global' => ['room' => []]]], $batch->accountData);
+		self::assertFalse($batch->isEmpty());
+	}
+
+	public function testEncryption(): void {
+		$batch = SyncBatch::fromArray([
+			'next_batch' => 'next',
+			'to_device' => ['events' => [['type' => 'm.room.encrypted', 'sender' => '@bob:example.org', 'content' => ['algorithm' => 'm.olm.v1.curve25519-aes-sha2']], 'invalid']],
+			'device_lists' => ['changed' => ['@bob:example.org', 42], 'left' => ['@carol:example.org']],
+			'device_one_time_keys_count' => ['signed_curve25519' => 12],
+			'device_unused_fallback_key_types' => ['signed_curve25519'],
+		]);
+
+		self::assertCount(1, $batch->toDevice);
+		self::assertSame('@bob:example.org', $batch->toDevice[0]->sender);
+		self::assertSame(['@bob:example.org'], $batch->changedDevices);
+		self::assertSame(12, $batch->oneTimeKeyCount);
+		self::assertSame(['signed_curve25519'], $batch->unusedFallbackKeyTypes);
+		self::assertFalse($batch->isEmpty());
+
+		$batch = SyncBatch::fromArray(['next_batch' => 'next']);
+		self::assertNull($batch->oneTimeKeyCount);
+		self::assertNull($batch->unusedFallbackKeyTypes);
+	}
+
 	public function testEmpty(): void {
 		self::assertTrue(SyncBatch::fromArray(['next_batch' => 'next'])->isEmpty());
 	}

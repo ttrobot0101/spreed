@@ -22,6 +22,7 @@ use OCA\Talk\Model\Attendee;
 use OCA\Talk\Participant;
 use OCA\Talk\Room;
 use OCA\Talk\Service\ParticipantService;
+use OCA\Talk\Service\ThreadService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Comments\IComment;
 use OCP\Comments\ICommentsManager;
@@ -43,6 +44,8 @@ class MessageSyncServiceTest extends TestCase {
 	private array $eventMaps = [];
 	/** @var array<string, IComment> */
 	private array $comments = [];
+	private ThreadService&MockObject $threadService;
+	private EventMapMapper&MockObject $eventMapMapper;
 	private MessageSyncService $service;
 
 	protected function setUp(): void {
@@ -58,7 +61,8 @@ class MessageSyncServiceTest extends TestCase {
 			default => throw new ParticipantNotFoundException(),
 		});
 
-		$eventMapMapper = $this->createMock(EventMapMapper::class);
+		$this->threadService = $this->createMock(ThreadService::class);
+		$eventMapMapper = $this->eventMapMapper = $this->createMock(EventMapMapper::class);
 		$eventMapMapper->method('insertIfNew')->willReturnCallback(function (EventMap $eventMap): bool {
 			if (isset($this->eventMaps[$eventMap->getEventId()])) {
 				return false;
@@ -87,6 +91,7 @@ class MessageSyncServiceTest extends TestCase {
 			$this->reactionManager,
 			$this->commentsManager,
 			$this->participantService,
+			$this->threadService,
 			$eventMapMapper,
 			$timeFactory,
 			$urlGenerator,
@@ -113,6 +118,7 @@ class MessageSyncServiceTest extends TestCase {
 		$comment->method('getActorId')->willReturn($actorId);
 		$comment->method('getMessage')->willReturn($message);
 		$comment->method('getParentId')->willReturn((string)$parentId);
+		$comment->method('getTopmostParentId')->willReturn((string)$parentId);
 		$this->comments[(string)$id] = $comment;
 		return $comment;
 	}
@@ -200,9 +206,71 @@ class MessageSyncServiceTest extends TestCase {
 
 		self::assertSame(2, $this->apply([
 			self::event('$emote', 'm.room.message', ['msgtype' => 'm.emote', 'body' => 'waves']),
-			self::event('$encrypted', 'm.room.encrypted', ['algorithm' => 'm.megolm.v1.aes-sha2', 'ciphertext' => 'abc']),
+			self::event('$encrypted', 'm.room.encrypted', ['algorithm' => 'm.megolm.v1.aes-sha2', 'ciphertext' => 'abc', 'session_id' => 'session']),
 		]));
-		self::assertSame(['* Bob waves', 'Encrypted message, end-to-end encrypted Matrix rooms are not supported yet'], $messages);
+		self::assertSame(['* Bob waves', 'Encrypted message, waiting for the key to decrypt it'], $messages);
+		self::assertSame('session', $this->eventMaps['$encrypted']->getMegolmSession());
+		self::assertSame(['algorithm' => 'm.megolm.v1.aes-sha2', 'ciphertext' => 'abc', 'session_id' => 'session'], json_decode((string)$this->eventMaps['$encrypted']->getCiphertext(), true));
+		self::assertNull($this->eventMaps['$emote']->getCiphertext());
+	}
+
+	public function testEncryptedReactionWithoutKeyIsSkipped(): void {
+		$this->chatManager->expects(self::never())->method('sendMessage');
+
+		self::assertSame(0, $this->apply([self::event('$reaction', 'm.room.encrypted', [
+			'algorithm' => 'm.megolm.v1.aes-sha2',
+			'ciphertext' => 'abc',
+			'm.relates_to' => ['rel_type' => 'm.annotation', 'event_id' => '$parent'],
+		])]));
+		self::assertArrayNotHasKey('$reaction', $this->eventMaps);
+	}
+
+	public function testDecryptedMessage(): void {
+		$this->chatManager->expects(self::once())->method('sendMessage')->willReturn($this->comment(11));
+		$event = self::event('$secret', 'm.room.encrypted', [])->withDecryptedContent('m.room.message', ['msgtype' => 'm.text', 'body' => 'Secret'], 'session', 7);
+
+		self::assertSame(1, $this->apply([$event]));
+		self::assertSame('m.room.message', $this->eventMaps['$secret']->getEventType());
+		self::assertSame('session', $this->eventMaps['$secret']->getMegolmSession());
+		self::assertSame(7, $this->eventMaps['$secret']->getMegolmIndex());
+		self::assertNull($this->eventMaps['$secret']->getCiphertext());
+	}
+
+	public function testReplayedMessageIsSkipped(): void {
+		$this->eventMapMapper->method('isMegolmIndexUsed')->with('100', '$replay', 'session', 7)->willReturn(true);
+		$this->chatManager->expects(self::never())->method('sendMessage');
+		$event = self::event('$replay', 'm.room.encrypted', [])->withDecryptedContent('m.room.message', ['msgtype' => 'm.text', 'body' => 'Secret'], 'session', 7);
+
+		self::assertSame(0, $this->apply([$event]));
+	}
+
+	public function testPlaceholderIsReplacedByDecryptedMessage(): void {
+		$placeholder = $this->comment(11);
+		$this->mapped('$secret', 11);
+		$eventMap = $this->eventMaps['$secret'];
+		$eventMap->setCiphertext('{}');
+		$this->eventMapMapper->expects(self::once())->method('update')->with($eventMap);
+		$this->chatManager->expects(self::once())
+			->method('editMessage')
+			->with($this->room, $placeholder, self::isInstanceOf(Participant::class), self::anything(), 'Secret');
+		$event = self::event('$secret', 'm.room.encrypted', [])->withDecryptedContent('m.room.message', ['msgtype' => 'm.text', 'body' => 'Secret'], 'session', 7);
+
+		$this->service->applyDecrypted($this->room, $this->matrixRoom, $eventMap, $event, [], []);
+
+		self::assertNull($eventMap->getCiphertext());
+		self::assertSame(7, $eventMap->getMegolmIndex());
+	}
+
+	public function testPlaceholderIsReplacedByDecryptedAttachment(): void {
+		$placeholder = $this->comment(11);
+		$this->mapped('$secret', 11);
+		$placeholder->expects(self::once())->method('setVerb')->with(ChatManager::VERB_OBJECT_SHARED);
+		$placeholder->expects(self::once())->method('setMessage')->with(self::stringContains('"objectType":"highlight"'));
+		$this->commentsManager->expects(self::once())->method('save')->with($placeholder);
+		$this->chatManager->expects(self::never())->method('editMessage');
+		$event = self::event('$secret', 'm.room.encrypted', [])->withDecryptedContent('m.room.message', ['msgtype' => 'm.image', 'body' => 'cat.jpg', 'url' => 'mxc://example.org/abc'], 'session', 7);
+
+		$this->service->applyDecrypted($this->room, $this->matrixRoom, $this->eventMaps['$secret'], $event, [], []);
 	}
 
 	public function testAlreadyMirroredAndIgnoredEvents(): void {
@@ -340,12 +408,72 @@ class MessageSyncServiceTest extends TestCase {
 					'name' => 'cat.jpg',
 					'link' => 'https://cloud.example/spreed.MatrixMedia.download/55',
 					'mxc' => 'mxc://example.org/abc',
+					'thumb' => 'https://cloud.example/spreed.MatrixMedia.preview/55',
 				];
 				self::assertSame(['message' => 'object_shared', 'parameters' => ['objectType' => 'highlight', 'objectId' => 'matrix-media/55', 'metaData' => $object]], json_decode($message, true));
 				return $this->comment(11, ChatManager::VERB_OBJECT_SHARED);
 			});
 
 		self::assertSame(1, $this->apply([self::event('$image', 'm.room.message', ['msgtype' => 'm.image', 'body' => 'cat.jpg', 'url' => 'mxc://example.org/abc'])], true));
+	}
+
+	public function testFileHasNoPreview(): void {
+		$this->chatManager->expects(self::once())
+			->method('addSystemMessage')
+			->willReturnCallback(function (Room $room, ?Participant $participant, string $actorType, string $actorId, string $message): IComment {
+				self::assertArrayNotHasKey('thumb', json_decode($message, true)['parameters']['metaData']);
+				return $this->comment(11, ChatManager::VERB_OBJECT_SHARED);
+			});
+
+		$this->apply([self::event('$file', 'm.room.message', ['msgtype' => 'm.file', 'body' => 'report.pdf', 'url' => 'mxc://example.org/abc'])]);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private static function threadRelation(string $rootEventId, string $inReplyTo, bool $isFallingBack): array {
+		return ['rel_type' => 'm.thread', 'event_id' => $rootEventId, 'is_falling_back' => $isFallingBack, 'm.in_reply_to' => ['event_id' => $inReplyTo]];
+	}
+
+	public function testFirstMessageInThreadCreatesThread(): void {
+		$this->comment(11, message: 'Plans for Friday');
+		$this->mapped('$root', 11);
+		$this->threadService->method('validateThread')->with(23, 11)->willReturn(false);
+		$this->room->method('getId')->willReturn(23);
+		$this->threadService->expects(self::once())->method('createThread')->with($this->room, 11, 'Plans for Friday');
+		$this->chatManager->expects(self::once())
+			->method('sendMessage')
+			->with($this->room, null, Attendee::ACTOR_MATRIX, '@bob:example.org', 'Pizza?', self::anything(), null, self::anything(), self::anything(), false, 11)
+			->willReturn($this->comment(12, parentId: 11));
+
+		$this->apply([self::event('$reply', 'm.room.message', ['msgtype' => 'm.text', 'body' => 'Pizza?', 'm.relates_to' => self::threadRelation('$root', '$root', true)])]);
+	}
+
+	public function testReplyInsideOfThread(): void {
+		$this->comment(11, message: 'Plans for Friday');
+		$this->mapped('$root', 11);
+		$pizza = $this->comment(12, message: 'Pizza?', parentId: 11);
+		$this->mapped('$pizza', 12);
+		$this->threadService->method('validateThread')->willReturn(true);
+		$this->threadService->expects(self::never())->method('createThread');
+		$this->chatManager->expects(self::once())
+			->method('sendMessage')
+			->with($this->room, null, Attendee::ACTOR_MATRIX, '@bob:example.org', 'Yes', self::anything(), $pizza, self::anything(), self::anything(), false, 11)
+			->willReturn($this->comment(13, parentId: 11));
+
+		$this->apply([self::event('$yes', 'm.room.message', ['msgtype' => 'm.text', 'body' => 'Yes', 'm.relates_to' => self::threadRelation('$root', '$pizza', false)])]);
+	}
+
+	public function testThreadOfUnknownMessageBecomesReply(): void {
+		$pizza = $this->comment(12, message: 'Pizza?');
+		$this->mapped('$pizza', 12);
+		$this->threadService->expects(self::never())->method('createThread');
+		$this->chatManager->expects(self::once())
+			->method('sendMessage')
+			->with($this->room, null, Attendee::ACTOR_MATRIX, '@bob:example.org', 'Yes', self::anything(), $pizza, self::anything(), self::anything(), false, 0)
+			->willReturn($this->comment(13, parentId: 12));
+
+		$this->apply([self::event('$yes', 'm.room.message', ['msgtype' => 'm.text', 'body' => 'Yes', 'm.relates_to' => self::threadRelation('$old', '$pizza', true)])]);
 	}
 
 	public function testLocation(): void {

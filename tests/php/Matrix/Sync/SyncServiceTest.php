@@ -94,7 +94,8 @@ class SyncServiceTest extends TestCase {
 			});
 		$this->roomSyncService->expects(self::exactly(2))
 			->method('process')
-			->willReturnCallback(static function (Account $account, SyncBatch $batch, bool $initial): array {
+			->willReturnCallback(function (Account $account, Client $client, SyncBatch $batch, bool $initial): array {
+				self::assertSame($this->client, $client);
 				self::assertSame($batch->nextBatch === 'first', $initial, 'Only the first batch is from the initial sync');
 				return ['rooms' => 2, 'messages' => $initial ? 5 : 1, 'failed' => 0];
 			});
@@ -131,6 +132,30 @@ class SyncServiceTest extends TestCase {
 
 		self::assertSame('second', $account->getNextBatch());
 		self::assertSame('1 rooms failed to sync, see the log', $account->getLastError());
+	}
+
+	public function testForegroundSyncWaitsForNews(): void {
+		$account = $this->account('first');
+		$this->accountService->method('getForUser')->with('alice')->willReturn($account);
+		$this->accountMapper->expects(self::once())->method('acquireLock')->with($account, 1000, 1000 + 20 + SyncService::LOCK_SECONDS)->willReturn(true);
+		$this->client->expects(self::exactly(2))
+			->method('sync')
+			->willReturnMap([
+				['first', 'filter', 20000, self::batch('second')],
+				['second', 'filter', 0, self::batch('third', true)],
+			]);
+		$this->roomSyncService->method('process')->willReturn(['rooms' => 0, 'messages' => 0, 'failed' => 0]);
+
+		$this->service->foregroundSync('alice', 20);
+
+		self::assertSame('third', $account->getNextBatch());
+	}
+
+	public function testForegroundSyncSkipsInitialSync(): void {
+		$this->accountService->method('getForUser')->with('alice')->willReturn($this->account());
+		$this->accountMapper->expects(self::never())->method('acquireLock');
+
+		$this->service->foregroundSync('alice', 20);
 	}
 
 	public function testRejectedToken(): void {

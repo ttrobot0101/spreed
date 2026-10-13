@@ -38,6 +38,8 @@ use Psr\Log\LoggerInterface;
 class AccountService {
 	/** Seconds the result of a connection check is reused */
 	public const CONNECTION_CHECK_TTL = 300;
+	/** Seconds an upload or download of media may take */
+	public const MEDIA_TIMEOUT = 600;
 
 	private ICache $connectionCache;
 
@@ -48,6 +50,7 @@ class AccountService {
 		private readonly RoomSyncService $roomSyncService,
 		private readonly Config $config,
 		private readonly ICrypto $crypto,
+		private readonly CryptoService $cryptoService,
 		private readonly Defaults $defaults,
 		private readonly INotificationManager $notificationManager,
 		private readonly ITimeFactory $timeFactory,
@@ -132,6 +135,10 @@ class AccountService {
 			throw new \InvalidArgumentException('user');
 		}
 
+		if ($login->deviceId !== $account->getDeviceId()) {
+			// The keys belong to the old device
+			$this->cryptoService->wipe($account);
+		}
 		$account->setAccessToken($this->crypto->encrypt($login->accessToken));
 		$account->setDeviceId($login->deviceId);
 		$account->setStatus(Account::STATUS_ACTIVE);
@@ -207,6 +214,7 @@ class AccountService {
 		}
 		$this->notificationManager->markProcessed($this->getReloginNotification($account));
 		$this->roomSyncService->removeAccount($account);
+		$this->cryptoService->wipe($account);
 		$this->mapper->delete($account);
 	}
 

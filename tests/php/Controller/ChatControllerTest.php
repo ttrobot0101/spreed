@@ -20,9 +20,11 @@ use OCA\Talk\GuestManager;
 use OCA\Talk\Manager;
 use OCA\Talk\Matrix\Service\SendException;
 use OCA\Talk\Matrix\Service\SendService;
+use OCA\Talk\Matrix\Sync\SyncService;
 use OCA\Talk\MatterbridgeManager;
 use OCA\Talk\Model\Attendee;
 use OCA\Talk\Model\Message;
+use OCA\Talk\Model\Thread;
 use OCA\Talk\Participant;
 use OCA\Talk\Room;
 use OCA\Talk\Service\AttachmentService;
@@ -99,6 +101,7 @@ class ChatControllerTest extends TestCase {
 	private ConversationFolderService&MockObject $conversationFolderService;
 	private Config&MockObject $talkConfig;
 	protected SendService&MockObject $sendService;
+	protected SyncService&MockObject $syncService;
 
 	protected Room&MockObject $room;
 
@@ -148,6 +151,7 @@ class ChatControllerTest extends TestCase {
 		$this->conversationFolderService = $this->createMock(ConversationFolderService::class);
 		$this->talkConfig = $this->createMock(Config::class);
 		$this->sendService = $this->createMock(SendService::class);
+		$this->syncService = $this->createMock(SyncService::class);
 
 		$this->room = $this->createMock(Room::class);
 
@@ -204,6 +208,7 @@ class ChatControllerTest extends TestCase {
 			$this->conversationFolderService,
 			$this->talkConfig,
 			$this->sendService,
+			$this->syncService,
 		);
 	}
 
@@ -320,10 +325,49 @@ class ChatControllerTest extends TestCase {
 		$this->assertEquals(new DataResponse(['id' => 42], Http::STATUS_CREATED), $response);
 	}
 
+	public function testStartThreadInMatrixConversation(): void {
+		$participant = $this->createMock(Participant::class);
+		$participant->method('getAttendee')->willReturn(Attendee::fromRow(['actor_type' => Attendee::ACTOR_USERS, 'actor_id' => $this->userId]));
+		$this->room->method('getObjectType')->willReturn(Room::OBJECT_TYPE_MATRIX);
+
+		$comment = $this->newComment(42, 'user', $this->userId, new \DateTime(), 'testMessage');
+		$this->sendService->expects($this->once())
+			->method('sendMessage')
+			->with($this->room, $participant, 'testMessage', null, '', false, Thread::THREAD_CREATE, 'testThread')
+			->willReturn($comment);
+		$thread = new Thread();
+		$thread->setId(42);
+		$thread->setName('testThread');
+		$this->threadService->expects($this->once())->method('createThread')->with($this->room, 42, 'testThread')->willReturn($thread);
+		$this->chatManager->expects($this->once())
+			->method('addSystemMessage')
+			->with($this->room, $participant, Attendee::ACTOR_USERS, $this->userId, json_encode(['message' => 'thread_created', 'parameters' => ['thread' => 42, 'title' => 'testThread']]));
+		$this->messageParser->method('createMessage')->willReturn($this->createMock(Message::class));
+
+		$this->controller->setRoom($this->room);
+		$this->controller->setParticipant($participant);
+		$this->controller->sendMessage('testMessage', '', '', 0, '', false, 'testThread');
+	}
+
+	public function testSendMessageToThreadOfMatrixConversation(): void {
+		$participant = $this->createStub(Participant::class);
+		$this->room->method('getObjectType')->willReturn(Room::OBJECT_TYPE_MATRIX);
+		$this->threadService->method('validateThread')->willReturn(true);
+
+		$this->sendService->expects($this->once())
+			->method('sendMessage')
+			->with($this->room, $participant, 'testMessage', null, '', false, 23, '')
+			->willReturn($this->newComment(42, 'user', $this->userId, new \DateTime(), 'testMessage'));
+		$this->threadService->expects($this->never())->method('createThread');
+		$this->messageParser->method('createMessage')->willReturn($this->createMock(Message::class));
+
+		$this->controller->setRoom($this->room);
+		$this->controller->setParticipant($participant);
+		$this->controller->sendMessage('testMessage', '', '', 0, '', false, '', 23);
+	}
+
 	public static function dataSendMessageToMatrixConversationFails(): array {
 		return [
-			'thread title' => ['testThread', 0, null, new DataResponse(['error' => 'message'], Http::STATUS_BAD_REQUEST)],
-			'thread reply' => ['', 23, null, new DataResponse(['error' => 'message'], Http::STATUS_BAD_REQUEST)],
 			'homeserver' => ['', 0, new SendException('matrix', Http::STATUS_BAD_GATEWAY), new DataResponse(['error' => 'matrix'], Http::STATUS_BAD_GATEWAY)],
 		];
 	}
@@ -1203,6 +1247,50 @@ class ChatControllerTest extends TestCase {
 		$expected = new DataResponse(null, Http::STATUS_NOT_MODIFIED);
 
 		$this->assertEquals($expected, $response);
+	}
+
+	public function testWaitForNewMessagesOfMatrixConversation(): void {
+		$participant = $this->createStub(Participant::class);
+		$testUser = $this->createMock(IUser::class);
+		$this->userManager->method('get')->with('testUser')->willReturn($testUser);
+		$this->room->method('getObjectType')->willReturn(Room::OBJECT_TYPE_MATRIX);
+		$this->talkConfig->method('isMatrixEnabled')->willReturn(true);
+		$this->timeFactory->method('getTime')->willReturnOnConsecutiveCalls(1000, 1012);
+
+		$this->syncService->expects($this->once())
+			->method('foregroundSync')
+			->with('testUser', 25);
+		$this->chatManager->expects($this->exactly(2))
+			->method('waitForNewMessages')
+			->willReturnCallback(function (Room $room, int $offset, int $limit, int $timeout): array {
+				static $calls = 0;
+				$this->assertSame([0, 18][$calls++], $timeout, 'Checks for new messages first, then waits for the rest of the time');
+				return [];
+			});
+
+		$this->controller->setRoom($this->room);
+		$this->controller->setParticipant($participant);
+		$response = $this->controller->receiveMessages(1, 4, 23, 0, 30);
+
+		$this->assertEquals(new DataResponse(null, Http::STATUS_NOT_MODIFIED), $response);
+	}
+
+	public function testNewMessagesOfMatrixConversationAreReturnedWithoutSync(): void {
+		$participant = $this->createStub(Participant::class);
+		$this->userManager->method('get')->willReturn($this->createMock(IUser::class));
+		$this->room->method('getObjectType')->willReturn(Room::OBJECT_TYPE_MATRIX);
+		$this->talkConfig->method('isMatrixEnabled')->willReturn(true);
+
+		$this->syncService->expects($this->never())->method('foregroundSync');
+		$this->chatManager->expects($this->once())
+			->method('waitForNewMessages')
+			->with($this->room, 23, 4, 0)
+			->willReturn([$this->newComment(108, 'users', 'testUser', new \DateTime('@' . 1000000004), 'testMessage1')]);
+		$this->messageParser->method('createMessage')->willReturn($this->createMock(Message::class));
+
+		$this->controller->setRoom($this->room);
+		$this->controller->setParticipant($participant);
+		$this->controller->receiveMessages(1, 4, 23, 0, 30);
 	}
 
 	public static function dataMentions(): array {

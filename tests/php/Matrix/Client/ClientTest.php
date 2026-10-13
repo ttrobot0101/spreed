@@ -12,6 +12,7 @@ use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Response;
 use OCA\Talk\Matrix\Client\Client;
 use OCA\Talk\Matrix\Client\Exception\MatrixException;
+use OCA\Talk\Matrix\Client\Model\Event;
 use OCA\Talk\Matrix\Client\Transport;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -23,6 +24,10 @@ class ClientTest extends TestCase {
 	private array $responses = [];
 	/** @var list<string> */
 	private array $paths = [];
+	/** @var list<string> */
+	private array $queries = [];
+	/** @var list<string> */
+	private array $methods = [];
 	private Client $client;
 
 	protected function setUp(): void {
@@ -43,6 +48,8 @@ class ClientTest extends TestCase {
 
 	public function respond(RequestInterface $request): ResponseInterface {
 		$this->paths[] = $request->getUri()->getPath();
+		$this->queries[] = $request->getUri()->getQuery();
+		$this->methods[] = $request->getMethod();
 		return array_shift($this->responses) ?? new Response(404);
 	}
 
@@ -59,6 +66,61 @@ class ClientTest extends TestCase {
 
 		self::assertSame('png', (string)$this->client->downloadMedia('mxc://example.org/abc')->getBody());
 		self::assertSame(['/_matrix/client/v1/media/download/example.org/abc', '/_matrix/media/v3/download/example.org/abc'], $this->paths);
+	}
+
+	public function testUploadAndQueryKeys(): void {
+		$this->responses[] = new Response(200, ['Content-Type' => 'application/json'], '{"one_time_key_counts":{"signed_curve25519":50}}');
+		$this->responses[] = new Response(200, ['Content-Type' => 'application/json'], json_encode([
+			'device_keys' => ['@bob:hs' => ['BOB' => ['device_id' => 'BOB'], 'INVALID' => 'x']],
+			'failures' => [],
+		]));
+
+		self::assertSame(['signed_curve25519' => 50], $this->client->uploadKeys(['device_id' => 'DEV'], [], []));
+		self::assertSame(['@bob:hs' => ['BOB' => ['device_id' => 'BOB']]], $this->client->queryKeys(['@bob:hs']));
+		self::assertSame(['/_matrix/client/v3/keys/upload', '/_matrix/client/v3/keys/query'], $this->paths);
+	}
+
+	public function testPushRules(): void {
+		$this->responses[] = new Response(200, ['Content-Type' => 'application/json'], '{}');
+		$this->responses[] = new Response(200, ['Content-Type' => 'application/json'], '{}');
+
+		$this->client->setPushRule('room', '!room:example.org', ['actions' => []]);
+		$this->client->deletePushRule('override', '!room:example.org');
+
+		self::assertSame([
+			'/_matrix/client/v3/pushrules/global/room/%21room%3Aexample.org',
+			'/_matrix/client/v3/pushrules/global/override/%21room%3Aexample.org',
+		], $this->paths);
+		self::assertSame(['PUT', 'DELETE'], $this->methods);
+	}
+
+	public function testGetMessages(): void {
+		$this->responses[] = new Response(200, ['Content-Type' => 'application/json'], json_encode([
+			'chunk' => [
+				['event_id' => '$2', 'type' => 'm.room.message', 'sender' => '@bob:example.org', 'content' => ['body' => 'Two']],
+				['event_id' => '$1', 'type' => 'm.room.message', 'sender' => '@bob:example.org', 'content' => ['body' => 'One']],
+			],
+			'start' => 't2',
+			'end' => 't1',
+		]));
+		$this->responses[] = new Response(200, ['Content-Type' => 'application/json'], '{"chunk":[],"start":"t1"}');
+
+		$page = $this->client->getMessages('!room:example.org', 't2', 50);
+		self::assertSame(['$2', '$1'], array_map(static fn (Event $event): string => $event->eventId, $page['events']));
+		self::assertSame('t1', $page['end']);
+		self::assertSame(['/_matrix/client/v3/rooms/%21room%3Aexample.org/messages'], $this->paths);
+		self::assertSame(['from=t2&dir=b&limit=50'], $this->queries);
+
+		self::assertSame(['events' => [], 'end' => null], $this->client->getMessages('!room:example.org', 't1', 50));
+	}
+
+	public function testDownloadThumbnail(): void {
+		$this->responses[] = new Response(404, ['Content-Type' => 'application/json'], '{"errcode":"M_UNRECOGNIZED","error":"Unrecognized request"}');
+		$this->responses[] = new Response(200, ['Content-Type' => 'image/png'], 'png');
+
+		self::assertSame('png', (string)$this->client->downloadThumbnail('mxc://example.org/abc', 640, false)->getBody());
+		self::assertSame(['/_matrix/client/v1/media/thumbnail/example.org/abc', '/_matrix/media/v3/thumbnail/example.org/abc'], $this->paths);
+		self::assertSame(['width=640&height=640&method=scale', 'width=640&height=640&method=scale'], $this->queries);
 	}
 
 	public function testDownloadMissingMedia(): void {

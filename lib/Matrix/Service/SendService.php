@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace OCA\Talk\Matrix\Service;
 
-use GuzzleHttp\Psr7\HttpFactory;
+use GuzzleHttp\Psr7\Stream;
 use OCA\Talk\CachePrefix;
 use OCA\Talk\Chat\ChatManager;
 use OCA\Talk\Chat\ReactionManager;
@@ -27,8 +27,10 @@ use OCA\Talk\Matrix\Model\MatrixRoom;
 use OCA\Talk\Matrix\Model\MatrixRoomMapper;
 use OCA\Talk\Matrix\Sync\RoomSyncService;
 use OCA\Talk\Model\Attendee;
+use OCA\Talk\Model\Thread;
 use OCA\Talk\Participant;
 use OCA\Talk\Room;
+use OCA\Talk\Service\ThreadService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -58,6 +60,7 @@ class SendService {
 		private readonly ChatManager $chatManager,
 		private readonly ReactionManager $reactionManager,
 		private readonly ICommentsManager $commentsManager,
+		private readonly ThreadService $threadService,
 		private readonly IUserManager $userManager,
 		private readonly ISecureRandom $secureRandom,
 		private readonly ITimeFactory $timeFactory,
@@ -67,17 +70,16 @@ class SendService {
 	}
 
 	/**
+	 * @param int $threadId Thread to post the message in, Thread::THREAD_CREATE to start one with the given title
 	 * @throws SendException
 	 */
-	public function sendMessage(Room $room, Participant $participant, string $message, ?IComment $replyTo, string $referenceId, bool $silent): IComment {
+	public function sendMessage(Room $room, Participant $participant, string $message, ?IComment $replyTo, string $referenceId, bool $silent, int $threadId = Thread::THREAD_NONE, string $threadTitle = ''): IComment {
 		[$matrixRoom, $account] = $this->prepare($room, $participant);
 
 		$content = $this->getTextContent($message);
-		if ($replyTo !== null) {
-			$parent = $this->eventMapMapper->findByCommentId((string)$matrixRoom->getId(), (int)$replyTo->getId());
-			if ($parent !== null) {
-				$content['m.relates_to'] = ['m.in_reply_to' => ['event_id' => $parent->getEventId()]];
-			}
+		$relation = $this->getRelation($room, $matrixRoom, $replyTo, $threadId);
+		if ($relation !== null) {
+			$content['m.relates_to'] = $relation;
 		}
 
 		$eventId = $this->send($account, fn (Client $client, string $transactionId): string => $client->sendEvent($matrixRoom->getMatrixRoomId(), 'm.room.message', $content, $transactionId));
@@ -96,6 +98,8 @@ class SendService {
 			$replyTo,
 			$referenceId,
 			$silent,
+			threadId: $threadId,
+			threadTitle: $threadTitle,
 		);
 		$eventMap->setCommentId((int)$comment->getId());
 		$this->eventMapMapper->update($eventMap);
@@ -222,6 +226,36 @@ class SendService {
 	}
 
 	/**
+	 * Store the notification level as push rules of the Matrix account
+	 *
+	 * @param Participant::NOTIFY_ALWAYS|Participant::NOTIFY_MENTION|Participant::NOTIFY_NEVER $level
+	 * @throws SendException
+	 */
+	public function setNotificationLevel(Room $room, Participant $participant, int $level): void {
+		[$matrixRoom, $account] = $this->prepare($room, $participant, false);
+		$roomId = $matrixRoom->getMatrixRoomId();
+		$this->send($account, function (Client $client) use ($roomId, $level): string {
+			if ($level === Participant::NOTIFY_NEVER) {
+				$client->setPushRule('override', $roomId, [
+					'conditions' => [['kind' => 'event_match', 'key' => 'room_id', 'pattern' => $roomId]],
+					'actions' => [],
+				]);
+				return '';
+			}
+
+			$client->setPushRule('room', $roomId, ['actions' => $level === Participant::NOTIFY_ALWAYS ? ['notify', ['set_tweak' => 'sound', 'value' => 'default']] : []]);
+			try {
+				$client->deletePushRule('override', $roomId);
+			} catch (MatrixException $e) {
+				if ($e->getErrcode() !== 'M_NOT_FOUND') {
+					throw $e;
+				}
+			}
+			return '';
+		});
+	}
+
+	/**
 	 * Invite the linked Matrix account of a user, they join the conversation by accepting the invite
 	 *
 	 * @throws SendException
@@ -323,7 +357,11 @@ class SendService {
 		if (!is_resource($stream)) {
 			throw new SendException('message', Http::STATUS_NOT_FOUND);
 		}
-		$contentUri = $this->send($account, fn (Client $client): string => $client->uploadMedia((new HttpFactory())->createStreamFromResource($stream), $mimeType, $file->getName()));
+		$contentUri = $this->send(
+			$account,
+			fn (Client $client): string => $client->uploadMedia(new Stream($stream, ['size' => (int)$file->getSize()]), $mimeType, $file->getName()),
+			AccountService::MEDIA_TIMEOUT,
+		);
 
 		$content = [
 			'msgtype' => match (explode('/', $mimeType)[0]) {
@@ -337,6 +375,10 @@ class SendService {
 			'url' => $contentUri,
 			'info' => ['mimetype' => $mimeType, 'size' => $file->getSize()],
 		];
+		$relation = $this->getRelation($room, $matrixRoom, $this->getParentComment($comment), Thread::THREAD_NONE);
+		if ($relation !== null) {
+			$content['m.relates_to'] = $relation;
+		}
 		$eventId = $this->send($account, fn (Client $client, string $transactionId): string => $client->sendEvent($matrixRoom->getMatrixRoomId(), 'm.room.message', $content, $transactionId));
 		$eventMap = $this->claimEvent($matrixRoom, $account, $eventId, 'm.room.message');
 		if ($eventMap !== null) {
@@ -444,12 +486,50 @@ class SendService {
 	}
 
 	/**
+	 * Reply and thread of a message as Matrix relation. Messages in threads
+	 * are a reply for clients without thread support.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	protected function getRelation(Room $room, MatrixRoom $matrixRoom, ?IComment $replyTo, int $threadId): ?array {
+		if ($replyTo !== null) {
+			$threadId = (int)$replyTo->getTopmostParentId() ?: (int)$replyTo->getId();
+		}
+		$root = $threadId > 0 && $this->threadService->validateThread($room->getId(), $threadId)
+			? $this->eventMapMapper->findByCommentId((string)$matrixRoom->getId(), $threadId)
+			: null;
+		$parent = $replyTo !== null ? $this->eventMapMapper->findByCommentId((string)$matrixRoom->getId(), (int)$replyTo->getId()) : null;
+
+		if ($root === null) {
+			return $parent !== null ? ['m.in_reply_to' => ['event_id' => $parent->getEventId()]] : null;
+		}
+		return [
+			'rel_type' => 'm.thread',
+			'event_id' => $root->getEventId(),
+			'is_falling_back' => $parent === null,
+			// ponytail: the fallback replies to the root, the spec suggests the latest message of the thread
+			'm.in_reply_to' => ['event_id' => ($parent ?? $root)->getEventId()],
+		];
+	}
+
+	protected function getParentComment(IComment $comment): ?IComment {
+		if ($comment->getParentId() === '0' || $comment->getParentId() === '') {
+			return null;
+		}
+		try {
+			return $this->commentsManager->get($comment->getParentId());
+		} catch (NotFoundException) {
+			return null;
+		}
+	}
+
+	/**
 	 * @param \Closure(Client, string): string $request Gets the client and a new transaction id, returns the event id
 	 * @throws SendException
 	 */
-	protected function send(Account $account, \Closure $request): string {
+	protected function send(Account $account, \Closure $request, int $timeout = 20): string {
 		try {
-			return $request($this->accountService->getClient($account, 20), 'nc' . $this->secureRandom->generate(24, ISecureRandom::CHAR_ALPHANUMERIC));
+			return $request($this->accountService->getClient($account, $timeout), 'nc' . $this->secureRandom->generate(24, ISecureRandom::CHAR_ALPHANUMERIC));
 		} catch (UnknownTokenException $e) {
 			$this->accountService->markTokenInvalid($account, $e->getMessage());
 			throw new SendException('account', Http::STATUS_FORBIDDEN, $e);

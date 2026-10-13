@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace OCA\Talk\Matrix\Client;
 
 use OCA\Talk\Matrix\Client\Exception\MatrixException;
+use OCA\Talk\Matrix\Client\Model\Event;
 use OCA\Talk\Matrix\Client\Model\LoginResult;
 use OCA\Talk\Matrix\Client\Model\SyncBatch;
 use Psr\Http\Message\ResponseInterface;
@@ -90,6 +91,115 @@ class Client {
 			'timeout' => $timeoutMs,
 			'set_presence' => 'offline',
 		]));
+	}
+
+	/**
+	 * Send an event to devices, without a room
+	 *
+	 * @param array<string, array<string, array<string, mixed>>> $messages Content indexed by user id and device id, `*` for all devices of the user
+	 * @param string $transactionId Unique per access token, a retry with the same id is not sent twice
+	 * @throws MatrixException
+	 */
+	public function sendToDevice(string $type, array $messages, string $transactionId): void {
+		$this->transport->put(self::PREFIX . '/sendToDevice/' . rawurlencode($type) . '/' . rawurlencode($transactionId), ['messages' => $messages]);
+	}
+
+	/**
+	 * Publish the keys of the device
+	 *
+	 * @param array<string, mixed> $deviceKeys Signed device keys
+	 * @param array<string, mixed> $oneTimeKeys Signed one-time keys indexed by algorithm and key id
+	 * @param array<string, mixed> $fallbackKeys Signed fallback keys indexed by algorithm and key id
+	 * @return array<string, int> Number of one-time keys on the homeserver indexed by algorithm
+	 * @throws MatrixException
+	 */
+	public function uploadKeys(array $deviceKeys, array $oneTimeKeys, array $fallbackKeys): array {
+		$body = ['device_keys' => $deviceKeys];
+		if ($oneTimeKeys !== []) {
+			$body['one_time_keys'] = $oneTimeKeys;
+		}
+		if ($fallbackKeys !== []) {
+			$body['fallback_keys'] = $fallbackKeys;
+		}
+		$counts = $this->transport->post(self::PREFIX . '/keys/upload', $body)['one_time_key_counts'] ?? [];
+		return is_array($counts) ? array_map('intval', $counts) : [];
+	}
+
+	/**
+	 * Device keys of users
+	 *
+	 * @param list<string> $userIds
+	 * @return array<string, array<string, mixed>> Raw signed device keys indexed by user id and device id
+	 * @throws MatrixException
+	 */
+	public function queryKeys(array $userIds): array {
+		$response = $this->transport->post(self::PREFIX . '/keys/query', ['device_keys' => array_fill_keys($userIds, [])]);
+		$devices = [];
+		foreach (is_array($response['device_keys'] ?? null) ? $response['device_keys'] : [] as $userId => $userDevices) {
+			foreach (is_array($userDevices) ? $userDevices : [] as $deviceId => $keys) {
+				if (is_array($keys)) {
+					$devices[(string)$userId][(string)$deviceId] = $keys;
+				}
+			}
+		}
+		return $devices;
+	}
+
+	/**
+	 * A device and the self-signing key of its user, to check whether the device is cross-signed
+	 *
+	 * @return array{device: ?array<string, mixed>, selfSigningKey: ?array<string, mixed>}
+	 * @throws MatrixException
+	 */
+	public function getVerificationKeys(string $userId, string $deviceId): array {
+		$response = $this->transport->post(self::PREFIX . '/keys/query', ['device_keys' => [$userId => []]]);
+		$device = $response['device_keys'][$userId][$deviceId] ?? null;
+		$selfSigningKey = $response['self_signing_keys'][$userId] ?? null;
+		return [
+			'device' => is_array($device) ? $device : null,
+			'selfSigningKey' => is_array($selfSigningKey) ? $selfSigningKey : null,
+		];
+	}
+
+	/**
+	 * Create or replace a push rule of the user
+	 *
+	 * @param 'override'|'room' $kind
+	 * @param array<string, mixed> $rule Actions and, for override rules, conditions
+	 * @throws MatrixException
+	 */
+	public function setPushRule(string $kind, string $ruleId, array $rule): void {
+		$this->transport->put(self::PREFIX . '/pushrules/global/' . $kind . '/' . rawurlencode($ruleId), $rule);
+	}
+
+	/**
+	 * @param 'override'|'room' $kind
+	 * @throws MatrixException M_NOT_FOUND when the rule does not exist
+	 */
+	public function deletePushRule(string $kind, string $ruleId): void {
+		$this->transport->delete(self::PREFIX . '/pushrules/global/' . $kind . '/' . rawurlencode($ruleId));
+	}
+
+	/**
+	 * Older events of a room, newest first
+	 *
+	 * @param string $from Pagination token, e.g. the prev_batch of a sync timeline
+	 * @return array{events: list<Event>, end: ?string} end is null when the start of the room was reached
+	 * @throws MatrixException
+	 */
+	public function getMessages(string $roomId, string $from, int $limit): array {
+		$response = $this->transport->get(self::PREFIX . '/rooms/' . rawurlencode($roomId) . '/messages', [
+			'from' => $from,
+			'dir' => 'b',
+			'limit' => $limit,
+		]);
+		$events = [];
+		foreach (is_array($response['chunk'] ?? null) ? $response['chunk'] : [] as $event) {
+			if (is_array($event)) {
+				$events[] = Event::fromArray($event);
+			}
+		}
+		return ['events' => $events, 'end' => is_string($response['end'] ?? null) ? $response['end'] : null];
 	}
 
 	/**
@@ -188,10 +298,7 @@ class Client {
 	 * @throws MatrixException
 	 */
 	public function downloadMedia(string $mxc): ResponseInterface {
-		if (!preg_match('~^mxc://([A-Za-z0-9.\-:\[\]]+)/([A-Za-z0-9_\-]+)$~', $mxc, $matches)) {
-			throw new \InvalidArgumentException('Invalid content URI');
-		}
-		$media = rawurlencode($matches[1]) . '/' . rawurlencode($matches[2]);
+		$media = $this->getMediaPath($mxc);
 
 		try {
 			return $this->transport->download('/_matrix/client/v1/media/download/' . $media);
@@ -209,5 +316,37 @@ class Client {
 	 */
 	public function uploadMedia(StreamInterface $content, string $contentType, string $fileName): string {
 		return $this->transport->upload($content, $contentType, $fileName);
+	}
+
+	/**
+	 * Scaled down image, with the same fallback as downloadMedia()
+	 *
+	 * @param string $mxc Content URI like mxc://example.org/abc
+	 * @param bool $crop Crop to a square instead of keeping the aspect ratio
+	 * @throws \InvalidArgumentException when the content URI is invalid
+	 * @throws MatrixException
+	 */
+	public function downloadThumbnail(string $mxc, int $size, bool $crop = true): ResponseInterface {
+		$query = '?width=' . $size . '&height=' . $size . '&method=' . ($crop ? 'crop' : 'scale');
+		$media = $this->getMediaPath($mxc);
+
+		try {
+			return $this->transport->download('/_matrix/client/v1/media/thumbnail/' . $media . $query);
+		} catch (MatrixException $e) {
+			if ($e->getHttpStatus() !== 404 || $e->getErrcode() === 'M_NOT_FOUND') {
+				throw $e;
+			}
+		}
+		return $this->transport->download('/_matrix/media/v3/thumbnail/' . $media . $query);
+	}
+
+	/**
+	 * @throws \InvalidArgumentException when the content URI is invalid
+	 */
+	protected function getMediaPath(string $mxc): string {
+		if (!preg_match('~^mxc://([A-Za-z0-9.\-:\[\]]+)/([A-Za-z0-9_\-]+)$~', $mxc, $matches)) {
+			throw new \InvalidArgumentException('Invalid content URI');
+		}
+		return rawurlencode($matches[1]) . '/' . rawurlencode($matches[2]);
 	}
 }
