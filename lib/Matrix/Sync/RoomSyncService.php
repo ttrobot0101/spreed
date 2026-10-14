@@ -23,6 +23,7 @@ use OCA\Talk\Matrix\Client\Model\SyncBatch;
 use OCA\Talk\Matrix\Client\Room\NameCalculator;
 use OCA\Talk\Matrix\Model\Account;
 use OCA\Talk\Matrix\Model\AccountMapper;
+use OCA\Talk\Matrix\Model\EventMap;
 use OCA\Talk\Matrix\Model\EventMapMapper;
 use OCA\Talk\Matrix\Model\MatrixMember;
 use OCA\Talk\Matrix\Model\MatrixMemberMapper;
@@ -97,14 +98,7 @@ class RoomSyncService {
 			}
 		}
 
-		foreach ($roomKeys as [$roomId, $sessionId]) {
-			try {
-				$this->decryptWaitingEvents($account, $roomId, $sessionId);
-			} catch (\Throwable $e) {
-				$stats['failed']++;
-				$this->logger->error('Waiting events of Matrix room ' . $roomId . ' could not be decrypted for ' . $account->getMxid(), ['exception' => $e]);
-			}
-		}
+		$stats['failed'] += $this->decryptWaitingEvents($account, $client, $roomKeys);
 
 		if (isset($batch->accountData['m.push_rules'])) {
 			try {
@@ -190,8 +184,8 @@ class RoomSyncService {
 
 		$name = $this->getName($state, $joined, $account, $members);
 		$description = mb_substr($state->topic ?? '', 0, Room::DESCRIPTION_MAXIMUM_LENGTH);
-		// Messages can not be sent to encrypted rooms yet
-		$readOnly = $state->encrypted ? Room::READ_ONLY : Room::READ_WRITE;
+		// Messages to encrypted rooms need the sodium extension
+		$readOnly = $state->encrypted && !$this->cryptoService->isAvailable() ? Room::READ_ONLY : Room::READ_WRITE;
 		$room = $this->findTalkRoom($matrixRoom);
 		$created = $room === null;
 		if ($room === null) {
@@ -225,23 +219,52 @@ class RoomSyncService {
 			$timeline = [...$this->getHistory($client, $matrixRoom, $joined->prevBatch), ...$timeline];
 		}
 		$timeline = array_map(fn (Event $event): Event => $event->type === 'm.room.encrypted'
-			? $this->cryptoService->decryptRoomEvent($account, $joined->roomId, $event) ?? $event
+			? $this->cryptoService->decryptRoomEvent($account, $client, $joined->roomId, $event) ?? $event
 			: $event, $timeline);
 		$messages = $this->messageSyncService->apply($room, $matrixRoom, $timeline, $members, $accounts, $initial || $created);
+		$fromBackup = $this->cryptoService->requestRoomKeys($account, $client, $joined->roomId, array_values(array_filter($timeline, static fn (Event $event): bool => $event->type === 'm.room.encrypted')));
+		$this->decryptWaitingEvents($account, $client, $fromBackup);
 		$this->applyReadReceipts($room, $matrixRoom, $joined->readReceipts, $accounts);
 		return $messages;
 	}
 
 	/**
-	 * Replace the placeholders of messages that were encrypted with a room key that arrived now
+	 * Replace the placeholders of messages that were encrypted with room keys that arrived now
+	 *
+	 * @param list<array{0: string, 1: string}> $roomKeys Matrix room id and session id of the new room keys
+	 * @return int Rooms that failed
 	 */
-	protected function decryptWaitingEvents(Account $account, string $matrixRoomId, string $sessionId): void {
+	public function decryptWaitingEvents(Account $account, Client $client, array $roomKeys): int {
+		$sessionsByRoom = [];
+		foreach ($roomKeys as [$roomId, $sessionId]) {
+			$sessionsByRoom[$roomId][$sessionId] = true;
+		}
+
+		$failed = 0;
+		foreach ($sessionsByRoom as $roomId => $sessions) {
+			try {
+				$this->decryptWaitingEventsOfRoom($account, $client, (string)$roomId, $sessions);
+			} catch (\Throwable $e) {
+				$failed++;
+				$this->logger->error('Waiting events of Matrix room ' . $roomId . ' could not be decrypted for ' . $account->getMxid(), ['exception' => $e]);
+			}
+		}
+		return $failed;
+	}
+
+	/**
+	 * @param array<string, true> $sessions Session ids of the new room keys
+	 */
+	protected function decryptWaitingEventsOfRoom(Account $account, Client $client, string $matrixRoomId, array $sessions): void {
 		$matrixRoom = $this->findMatrixRoom($matrixRoomId);
 		$room = $matrixRoom !== null ? $this->findTalkRoom($matrixRoom) : null;
 		if ($matrixRoom === null || $room === null) {
 			return;
 		}
-		$eventMaps = $this->eventMapMapper->findWaitingForKey((string)$matrixRoom->getId(), $sessionId);
+		$eventMaps = array_filter(
+			$this->eventMapMapper->findWaitingForKey((string)$matrixRoom->getId()),
+			static fn (EventMap $eventMap): bool => isset($sessions[(string)$eventMap->getMegolmSession()]),
+		);
 		if ($eventMaps === []) {
 			return;
 		}
@@ -250,7 +273,7 @@ class RoomSyncService {
 		$accounts = $this->getLinkedAccounts($members);
 		foreach ($eventMaps as $eventMap) {
 			$encrypted = new Event($eventMap->getEventId(), 'm.room.encrypted', $eventMap->getSender(), json_decode((string)$eventMap->getCiphertext(), true) ?: []);
-			$event = $this->cryptoService->decryptRoomEvent($account, $matrixRoomId, $encrypted);
+			$event = $this->cryptoService->decryptRoomEvent($account, $client, $matrixRoomId, $encrypted);
 			if ($event !== null) {
 				$this->messageSyncService->applyDecrypted($room, $matrixRoom, $eventMap, $event, $members, $accounts);
 			}

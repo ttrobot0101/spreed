@@ -1056,6 +1056,26 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/ocs/v2.php/apps/spreed/api/{apiVersion}/matrix/account/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore the keys of encrypted messages from the key backup of the Matrix account
+         * @description The recovery key (security key) unlocks the key backup. The key of the backup is kept, so keys that are missing later are looked up in it.
+         */
+        post: operations["matrix_account-restore-backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ocs/v2.php/apps/spreed/api/{apiVersion}/matrix/invite/{id}": {
         parameters: {
             query?: never;
@@ -2565,26 +2585,6 @@ export type paths = {
          * @description This endpoint requires admin access
          */
         post: operations["matrix_admin-test-homeserver"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/ocs/v2.php/apps/spreed/api/{apiVersion}/matrix/admin/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update feature toggle and group restriction
-         * @description This endpoint requires admin access
-         */
-        put: operations["matrix_admin-update-settings"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -10109,6 +10109,111 @@ export interface operations {
                             data: {
                                 /** @enum {string} */
                                 error: "account" | "matrix";
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+    "matrix_account-restore-backup": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required to be true for the API request to pass */
+                "OCS-APIRequest": boolean;
+            };
+            path: {
+                apiVersion: "v1";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Recovery key as shown by Matrix clients */
+                    recoveryKey: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Keys restored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ocs: {
+                            meta: components["schemas"]["OCSMeta"];
+                            data: {
+                                /** Format: int64 */
+                                restored: number;
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description Encryption is not available on the server or the recovery key is wrong */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ocs: {
+                            meta: components["schemas"]["OCSMeta"];
+                            data: {
+                                /** @enum {string} */
+                                error: "account" | "backup" | "matrix" | "recovery-key" | "unavailable";
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description Current user is not logged in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ocs: {
+                            meta: components["schemas"]["OCSMeta"];
+                            data: unknown;
+                        };
+                    };
+                };
+            };
+            /** @description No active linked account or no key backup */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ocs: {
+                            meta: components["schemas"]["OCSMeta"];
+                            data: {
+                                /** @enum {string} */
+                                error: "account" | "backup" | "matrix" | "recovery-key" | "unavailable";
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description The homeserver could not be reached */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ocs: {
+                            meta: components["schemas"]["OCSMeta"];
+                            data: {
+                                /** @enum {string} */
+                                error: "account" | "backup" | "matrix" | "recovery-key" | "unavailable";
                             };
                         };
                     };
@@ -18213,82 +18318,6 @@ export interface operations {
                             data: {
                                 error: string;
                             };
-                        };
-                    };
-                };
-            };
-        };
-    };
-    "matrix_admin-update-settings": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Required to be true for the API request to pass */
-                "OCS-APIRequest": boolean;
-            };
-            path: {
-                apiVersion: "v1";
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description Enable Matrix rooms
-                     * @default null
-                     */
-                    enabled?: boolean | null;
-                    /**
-                     * @description Groups allowed to link (empty = everyone)
-                     * @default null
-                     */
-                    allowedGroups?: string[] | null;
-                };
-            };
-        };
-        responses: {
-            /** @description Settings stored */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        ocs: {
-                            meta: components["schemas"]["OCSMeta"];
-                            data: {
-                                enabled: boolean;
-                                allowedGroups: string[];
-                            };
-                        };
-                    };
-                };
-            };
-            /** @description Current user is not logged in */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        ocs: {
-                            meta: components["schemas"]["OCSMeta"];
-                            data: unknown;
-                        };
-                    };
-                };
-            };
-            /** @description Logged in account must be an admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        ocs: {
-                            meta: components["schemas"]["OCSMeta"];
-                            data: unknown;
                         };
                     };
                 };

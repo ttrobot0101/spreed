@@ -22,13 +22,13 @@ import type {
 	reloginMatrixAccountParams,
 	reloginMatrixAccountResponse,
 	removeMatrixHomeserverResponse,
+	restoreMatrixBackupParams,
+	restoreMatrixBackupResponse,
 	startMatrixVerificationResponse,
 	testMatrixHomeserverResponse,
 	unlinkMatrixAccountResponse,
 	updateMatrixHomeserverParams,
 	updateMatrixHomeserverResponse,
-	updateMatrixSettingsParams,
-	updateMatrixSettingsResponse,
 } from '../types/index.ts'
 
 import axios from '@nextcloud/axios'
@@ -76,15 +76,6 @@ async function testMatrixHomeserver(id: MatrixHomeserver['id']): testMatrixHomes
  */
 async function removeMatrixHomeserver(id: MatrixHomeserver['id']): removeMatrixHomeserverResponse {
 	return axios.delete(generateOcsUrl('apps/spreed/api/v1/matrix/admin/homeserver/{id}', { id }))
-}
-
-/**
- * Update the feature toggle and group restriction
- *
- * @param payload The settings to change
- */
-async function updateMatrixSettings(payload: updateMatrixSettingsParams): updateMatrixSettingsResponse {
-	return axios.put(generateOcsUrl('apps/spreed/api/v1/matrix/admin/settings'), payload)
 }
 
 /**
@@ -172,6 +163,15 @@ async function cancelMatrixVerification(): cancelMatrixVerificationResponse {
 	return axios.delete(generateOcsUrl('apps/spreed/api/v1/matrix/account/verification'))
 }
 
+/**
+ * Restore the keys of encrypted messages from the key backup
+ *
+ * @param payload The recovery key of the Matrix account
+ */
+async function restoreMatrixBackup(payload: restoreMatrixBackupParams): restoreMatrixBackupResponse {
+	return axios.post(generateOcsUrl('apps/spreed/api/v1/matrix/account/backup'), payload)
+}
+
 export {
 	addMatrixHomeserver,
 	cancelMatrixVerification,
@@ -185,9 +185,9 @@ export {
 	linkMatrixAccount,
 	reloginMatrixAccount,
 	removeMatrixHomeserver,
+	restoreMatrixBackup,
 	startMatrixVerification,
 	testMatrixHomeserver,
 	unlinkMatrixAccount,
 	updateMatrixHomeserver,
-	updateMatrixSettings,
 }

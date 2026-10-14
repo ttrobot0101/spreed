@@ -15,14 +15,19 @@ use OCA\Talk\Chat\ChatManager;
 use OCA\Talk\Chat\ReactionManager;
 use OCA\Talk\Exceptions\ReactionAlreadyExistsException;
 use OCA\Talk\Matrix\Client\Client;
+use OCA\Talk\Matrix\Client\Crypto\Attachment;
+use OCA\Talk\Matrix\Client\Crypto\CryptoException;
 use OCA\Talk\Matrix\Client\Transport;
 use OCA\Talk\Matrix\Model\Account;
 use OCA\Talk\Matrix\Model\AccountMapper;
 use OCA\Talk\Matrix\Model\EventMap;
 use OCA\Talk\Matrix\Model\EventMapMapper;
+use OCA\Talk\Matrix\Model\MatrixMember;
+use OCA\Talk\Matrix\Model\MatrixMemberMapper;
 use OCA\Talk\Matrix\Model\MatrixRoom;
 use OCA\Talk\Matrix\Model\MatrixRoomMapper;
 use OCA\Talk\Matrix\Service\AccountService;
+use OCA\Talk\Matrix\Service\CryptoService;
 use OCA\Talk\Matrix\Service\SendException;
 use OCA\Talk\Matrix\Service\SendService;
 use OCA\Talk\Matrix\Sync\RoomSyncService;
@@ -52,6 +57,7 @@ class SendServiceTest extends TestCase {
 	private MatrixRoomMapper&MockObject $roomMapper;
 	private ChatManager&MockObject $chatManager;
 	private RoomSyncService&MockObject $roomSyncService;
+	private CryptoService&MockObject $cryptoService;
 	private ReactionManager&MockObject $reactionManager;
 	private ICommentsManager&MockObject $commentsManager;
 	private Room&MockObject $room;
@@ -138,6 +144,13 @@ class SendServiceTest extends TestCase {
 
 		$this->chatManager = $this->createMock(ChatManager::class);
 		$this->roomSyncService = $this->createMock(RoomSyncService::class);
+		$this->cryptoService = $this->createMock(CryptoService::class);
+		$memberMapper = $this->createMock(MatrixMemberMapper::class);
+		$memberMapper->method('getForRoom')->with('100')->willReturn([
+			'@alice:example.org' => MatrixMember::fromRow(['mxid' => '@alice:example.org', 'membership' => 'join']),
+			'@bob:example.org' => MatrixMember::fromRow(['mxid' => '@bob:example.org', 'membership' => 'invite']),
+			'@carol:example.org' => MatrixMember::fromRow(['mxid' => '@carol:example.org', 'membership' => 'leave']),
+		]);
 		$this->reactionManager = $this->createMock(ReactionManager::class);
 		$this->commentsManager = $this->createMock(ICommentsManager::class);
 		$this->threadService = $this->createMock(ThreadService::class);
@@ -165,6 +178,8 @@ class SendServiceTest extends TestCase {
 			$this->roomMapper,
 			$eventMapMapper,
 			$this->roomSyncService,
+			$this->cryptoService,
+			$memberMapper,
 			$this->chatManager,
 			$this->reactionManager,
 			$this->commentsManager,
@@ -289,6 +304,7 @@ class SendServiceTest extends TestCase {
 			'plain text' => ['Hello', ['msgtype' => 'm.text', 'body' => 'Hello', 'm.mentions' => []]],
 			'mention all' => ['Hello @all', ['msgtype' => 'm.text', 'body' => 'Hello @room', 'format' => 'org.matrix.custom.html', 'formatted_body' => 'Hello @room', 'm.mentions' => ['room' => true]]],
 			'unknown user' => ['Hello @"carol"', ['msgtype' => 'm.text', 'body' => 'Hello @"carol"', 'm.mentions' => []]],
+			'matrix user' => ['Hello @"matrix/@dave:example.org"', ['msgtype' => 'm.text', 'body' => 'Hello @dave:example.org', 'format' => 'org.matrix.custom.html', 'formatted_body' => 'Hello <a href="https://matrix.to/#/%40dave%3Aexample.org">@dave:example.org</a>', 'm.mentions' => ['user_ids' => ['@dave:example.org']]]],
 		];
 	}
 
@@ -297,11 +313,53 @@ class SendServiceTest extends TestCase {
 		self::assertSame($expected, json_decode(json_encode($this->service->getTextContent($message), JSON_THROW_ON_ERROR), true));
 	}
 
-	public function testEncryptedRoomIsRefused(): void {
+	public function testEncryptedRoomWithoutEncryptionIsRefused(): void {
 		$this->encrypted = true;
+		$this->cryptoService->method('isAvailable')->willReturn(false);
 
 		$this->expectExceptionObject(new SendException('encrypted', 400));
 		$this->service->sendMessage($this->room, $this->participant, 'Hi', null, '', false);
+	}
+
+	public function testMessageToEncryptedRoom(): void {
+		$this->encrypted = true;
+		$this->cryptoService->method('isAvailable')->willReturn(true);
+		$this->cryptoService->expects(self::once())
+			->method('encryptRoomEvent')
+			->with($this->account, self::anything(), '!room:example.org', ['@alice:example.org', '@bob:example.org'], 'm.room.message', self::callback(static fn (array $content): bool => $content['body'] === 'Hi'))
+			->willReturn(['algorithm' => 'm.megolm.v1.aes-sha2', 'ciphertext' => 'secret']);
+		$this->responses[] = $this->json(200, ['event_id' => '$sent']);
+		$this->chatManager->expects(self::once())->method('sendMessage')->willReturn($this->comment(12));
+
+		$this->service->sendMessage($this->room, $this->participant, 'Hi', null, '', false);
+
+		self::assertSame('/_matrix/client/v3/rooms/%21room%3Aexample.org/send/m.room.encrypted/nctransaction', $this->requests[0]->getUri()->getPath());
+		self::assertSame(['algorithm' => 'm.megolm.v1.aes-sha2', 'ciphertext' => 'secret'], $this->requestBody(0));
+		self::assertSame('m.room.message', $this->eventMaps['$sent']->getEventType());
+	}
+
+	public function testDeviceWithoutKeysCanNotSendToEncryptedRoom(): void {
+		$this->encrypted = true;
+		$this->cryptoService->method('isAvailable')->willReturn(true);
+		$this->cryptoService->method('encryptRoomEvent')->willThrowException(new CryptoException('The device has no keys yet'));
+		$this->chatManager->expects(self::never())->method('sendMessage');
+
+		$this->expectExceptionObject(new SendException('encrypted', 400));
+		$this->service->sendMessage($this->room, $this->participant, 'Hi', null, '', false);
+	}
+
+	public function testDeleteMessageInEncryptedRoomIsNotEncrypted(): void {
+		$this->encrypted = true;
+		$this->cryptoService->method('isAvailable')->willReturn(false);
+		$comment = $this->comment(11);
+		$this->mapped('$original', 11, '@alice:example.org');
+		$this->responses[] = $this->json(200, ['event_id' => '$redaction']);
+		$this->cryptoService->expects(self::never())->method('encryptRoomEvent');
+		$this->chatManager->expects(self::once())->method('deleteMessage')->willReturn($this->comment(12));
+
+		$this->service->deleteMessage($this->room, $this->participant, $comment);
+
+		self::assertStringContainsString('/redact/', $this->requests[0]->getUri()->getPath());
 	}
 
 	public function testRejectedTokenMarksAccount(): void {
@@ -600,8 +658,8 @@ class SendServiceTest extends TestCase {
 			'msgtype' => 'm.image',
 			'body' => 'Look',
 			'filename' => 'cat.png',
-			'url' => 'mxc://example.org/abc',
 			'info' => ['mimetype' => 'image/png', 'size' => 3],
+			'url' => 'mxc://example.org/abc',
 		], $this->requestBody(1));
 		self::assertSame(12, $this->eventMaps['$file']->getCommentId());
 	}
@@ -620,13 +678,44 @@ class SendServiceTest extends TestCase {
 		self::assertSame(['rel_type' => 'm.thread', 'event_id' => '$root', 'is_falling_back' => false, 'm.in_reply_to' => ['event_id' => '$root']], $this->requestBody(1)['m.relates_to']);
 	}
 
+	public function testSendFileToEncryptedRoom(): void {
+		$this->encrypted = true;
+		$this->cryptoService->method('isAvailable')->willReturn(true);
+		$sentContent = null;
+		$this->cryptoService->expects(self::once())
+			->method('encryptRoomEvent')
+			->willReturnCallback(function (Account $account, Client $client, string $roomId, array $members, string $type, array $content) use (&$sentContent): array {
+				$sentContent = $content;
+				return ['ciphertext' => 'secret'];
+			});
+		$this->responses[] = $this->json(200, ['content_uri' => 'mxc://example.org/encrypted']);
+		$this->responses[] = $this->json(200, ['event_id' => '$file']);
+
+		$this->service->sendFile($this->room, $this->shareComment(), $this->file(), '');
+
+		self::assertSame('/_matrix/media/v3/upload', $this->requests[0]->getUri()->getPath());
+		self::assertSame('', $this->requests[0]->getUri()->getQuery(), 'The name of the file is not sent to the homeserver');
+		self::assertSame('application/octet-stream', $this->requests[0]->getHeaderLine('Content-Type'));
+		self::assertArrayNotHasKey('url', $sentContent);
+		self::assertSame('mxc://example.org/encrypted', $sentContent['file']['url']);
+		self::assertSame(['mimetype' => 'image/png', 'size' => 3], $sentContent['info']);
+
+		$ciphertext = fopen('php://memory', 'r+b');
+		fwrite($ciphertext, (string)$this->requests[0]->getBody());
+		rewind($ciphertext);
+		$plaintext = Attachment::decrypt($ciphertext, Attachment::getKeys($sentContent['file']));
+		self::assertSame('cat', stream_get_contents($plaintext['stream']));
+		self::assertSame('/_matrix/client/v3/rooms/%21room%3Aexample.org/send/m.room.encrypted/nctransaction', $this->requests[1]->getUri()->getPath());
+	}
+
 	public function testSendFileOfUserWithoutAccount(): void {
 		$this->expectExceptionObject(new SendException('account', 403));
 		$this->service->sendFile($this->room, $this->shareComment('carol'), $this->file(), '');
 	}
 
-	public function testSendFileToEncryptedRoom(): void {
+	public function testSendFileToEncryptedRoomWithoutEncryption(): void {
 		$this->encrypted = true;
+		$this->cryptoService->method('isAvailable')->willReturn(false);
 
 		$this->expectExceptionObject(new SendException('encrypted', 400));
 		$this->service->sendFile($this->room, $this->shareComment(), $this->file(), '');

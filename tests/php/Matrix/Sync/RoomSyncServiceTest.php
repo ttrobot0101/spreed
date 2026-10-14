@@ -284,6 +284,16 @@ class RoomSyncServiceTest extends TestCase {
 		self::assertSame(['rooms' => 1, 'messages' => 0, 'failed' => 0], $stats);
 	}
 
+	public function testEncryptedRoomIsWritableWithEncryption(): void {
+		$this->existingRoom(null, ['@alice:example.org' => $this->member('@alice:example.org', 'join', '7')]);
+		$this->cryptoService->method('isAvailable')->willReturn(true);
+		$this->roomService->expects(self::once())->method('setReadOnly')->with($this->room, Room::READ_WRITE);
+
+		$this->service->process($this->account(), $this->client, self::batch([
+			'state' => ['events' => [['type' => 'm.room.encryption', 'state_key' => '', 'sender' => '@bob:example.org', 'content' => ['algorithm' => 'm.megolm.v1.aes-sha2']]]],
+		]), false);
+	}
+
 	public function testEncryptedRoomAndPowerLevels(): void {
 		$this->roomMapper->method('getByMatrixRoomId')->willReturn($this->matrixRoom());
 		$this->manager->method('getRoomById')->with(23)->willReturn($this->room);
@@ -674,7 +684,7 @@ class RoomSyncServiceTest extends TestCase {
 		$decrypted = self::message('$secret');
 		$this->cryptoService->expects(self::once())
 			->method('decryptRoomEvent')
-			->with(self::anything(), '!room:example.org', self::callback(static fn (Event $event): bool => $event->eventId === '$secret'))
+			->with(self::anything(), self::anything(), '!room:example.org', self::callback(static fn (Event $event): bool => $event->eventId === '$secret'))
 			->willReturn($decrypted);
 		$this->messageSyncService->expects(self::once())
 			->method('apply')
@@ -685,15 +695,45 @@ class RoomSyncServiceTest extends TestCase {
 		]), false);
 	}
 
+	public function testKeysOfUndecryptableEventsAreRequested(): void {
+		$this->existingRoom(null, ['@alice:example.org' => $this->member('@alice:example.org', 'join', '7')]);
+		$this->cryptoService->method('decryptRoomEvent')->willReturnCallback(static fn ($account, $client, string $roomId, Event $event): ?Event => $event->eventId === '$known' ? self::message('$known') : null);
+		$this->cryptoService->expects(self::once())
+			->method('requestRoomKeys')
+			->with(self::anything(), $this->client, '!room:example.org', self::callback(static fn (array $events): bool => self::eventIds($events) === ['$unknown']));
+
+		$this->service->process($this->account(), $this->client, self::batch([
+			'timeline' => ['events' => [
+				['event_id' => '$known', 'type' => 'm.room.encrypted', 'sender' => '@bob:example.org', 'content' => ['session_id' => 'known']],
+				['event_id' => '$unknown', 'type' => 'm.room.encrypted', 'sender' => '@bob:example.org', 'content' => ['session_id' => 'unknown']],
+			]],
+		]), false);
+	}
+
+	public function testEventsAreDecryptedWithRoomKeysOfTheBackup(): void {
+		$this->existingRoom(null, ['@alice:example.org' => $this->member('@alice:example.org', 'join', '7')]);
+		$this->cryptoService->method('requestRoomKeys')->willReturn([['!room:example.org', 'session']]);
+		$eventMap = EventMap::fromRow(['id' => '1', 'event_id' => '$secret', 'sender' => '@bob:example.org', 'megolm_session' => 'session', 'ciphertext' => '{"session_id":"session"}']);
+		$this->eventMapMapper->method('findWaitingForKey')->with('100')->willReturn([$eventMap]);
+		$decrypted = self::message('$secret');
+		$this->cryptoService->method('decryptRoomEvent')->willReturnCallback(static fn ($account, $client, string $roomId, Event $event): ?Event => $event->content === ['session_id' => 'session'] ? $decrypted : null);
+		$this->messageSyncService->expects(self::once())->method('applyDecrypted')->with($this->room, self::anything(), $eventMap, $decrypted);
+
+		$this->service->process($this->account(), $this->client, self::batch([
+			'timeline' => ['events' => [['event_id' => '$secret', 'type' => 'm.room.encrypted', 'sender' => '@bob:example.org', 'content' => ['session_id' => 'session']]]],
+		]), false);
+	}
+
 	public function testWaitingEventsAreDecryptedWithNewRoomKey(): void {
 		$this->existingRoom(null, ['@alice:example.org' => $this->member('@alice:example.org', 'join', '7')]);
 		$this->roomKeys = [['!room:example.org', 'session']];
-		$eventMap = EventMap::fromRow(['id' => '1', 'event_id' => '$secret', 'sender' => '@bob:example.org', 'ciphertext' => '{"session_id":"session"}']);
-		$this->eventMapMapper->method('findWaitingForKey')->with('100', 'session')->willReturn([$eventMap]);
+		$eventMap = EventMap::fromRow(['id' => '1', 'event_id' => '$secret', 'sender' => '@bob:example.org', 'megolm_session' => 'session', 'ciphertext' => '{"session_id":"session"}']);
+		$otherSession = EventMap::fromRow(['id' => '2', 'event_id' => '$other', 'sender' => '@bob:example.org', 'megolm_session' => 'other', 'ciphertext' => '{"session_id":"other"}']);
+		$this->eventMapMapper->method('findWaitingForKey')->with('100')->willReturn([$eventMap, $otherSession]);
 		$decrypted = self::message('$secret');
 		$this->cryptoService->expects(self::once())
 			->method('decryptRoomEvent')
-			->with(self::anything(), '!room:example.org', self::callback(static fn (Event $event): bool => $event->content === ['session_id' => 'session'] && $event->sender === '@bob:example.org'))
+			->with(self::anything(), self::anything(), '!room:example.org', self::callback(static fn (Event $event): bool => $event->content === ['session_id' => 'session'] && $event->sender === '@bob:example.org'))
 			->willReturn($decrypted);
 		$this->messageSyncService->expects(self::once())->method('applyDecrypted')->with($this->room, self::anything(), $eventMap, $decrypted);
 

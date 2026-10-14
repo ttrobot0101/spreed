@@ -126,16 +126,38 @@ class Client {
 	}
 
 	/**
+	 * Take one-time keys of devices to start Olm sessions with them
+	 *
+	 * @param array<string, array<string, string>> $devices Key algorithm indexed by user id and device id
+	 * @return array<string, array<string, array<string, mixed>>> Signed keys indexed by user id, device id and key id
+	 * @throws MatrixException
+	 */
+	public function claimKeys(array $devices): array {
+		$response = $this->transport->post(self::PREFIX . '/keys/claim', ['one_time_keys' => $devices]);
+		$claimed = [];
+		foreach (is_array($response['one_time_keys'] ?? null) ? $response['one_time_keys'] : [] as $userId => $userDevices) {
+			foreach (is_array($userDevices) ? $userDevices : [] as $deviceId => $keys) {
+				if (is_array($keys)) {
+					$claimed[(string)$userId][(string)$deviceId] = $keys;
+				}
+			}
+		}
+		return $claimed;
+	}
+
+	/**
 	 * Device keys of users
 	 *
 	 * @param list<string> $userIds
-	 * @return array<string, array<string, mixed>> Raw signed device keys indexed by user id and device id
+	 * @return array<string, array<string, array<string, mixed>>> Raw signed device keys indexed by user id and device id
 	 * @throws MatrixException
 	 */
 	public function queryKeys(array $userIds): array {
 		$response = $this->transport->post(self::PREFIX . '/keys/query', ['device_keys' => array_fill_keys($userIds, [])]);
 		$devices = [];
 		foreach (is_array($response['device_keys'] ?? null) ? $response['device_keys'] : [] as $userId => $userDevices) {
+			// Users without devices are included, users the homeserver could not query are not
+			$devices[(string)$userId] ??= [];
 			foreach (is_array($userDevices) ? $userDevices : [] as $deviceId => $keys) {
 				if (is_array($keys)) {
 					$devices[(string)$userId][(string)$deviceId] = $keys;
@@ -159,6 +181,49 @@ class Client {
 			'device' => is_array($device) ? $device : null,
 			'selfSigningKey' => is_array($selfSigningKey) ? $selfSigningKey : null,
 		];
+	}
+
+	/**
+	 * Global account data of the user
+	 *
+	 * @return array<string, mixed>
+	 * @throws MatrixException M_NOT_FOUND when the user has none of the type
+	 */
+	public function getAccountData(string $userId, string $type): array {
+		return $this->transport->get(self::PREFIX . '/user/' . rawurlencode($userId) . '/account_data/' . rawurlencode($type));
+	}
+
+	/**
+	 * The current key backup
+	 *
+	 * @return array<string, mixed> Version, algorithm and auth_data
+	 * @throws MatrixException M_NOT_FOUND when there is no backup
+	 */
+	public function getRoomKeysVersion(): array {
+		return $this->transport->get(self::PREFIX . '/room_keys/version');
+	}
+
+	/**
+	 * Backed up sessions, all of them or the one of a room
+	 *
+	 * @return array<string, array<string, array<string, mixed>>> Session data indexed by room id and session id
+	 * @throws MatrixException
+	 */
+	public function getRoomKeys(string $version, ?string $roomId = null, ?string $sessionId = null): array {
+		if ($roomId !== null && $sessionId !== null) {
+			$session = $this->transport->get(self::PREFIX . '/room_keys/keys/' . rawurlencode($roomId) . '/' . rawurlencode($sessionId), ['version' => $version]);
+			return [$roomId => [$sessionId => $session]];
+		}
+		$response = $this->transport->get(self::PREFIX . '/room_keys/keys', ['version' => $version]);
+		$sessions = [];
+		foreach (is_array($response['rooms'] ?? null) ? $response['rooms'] : [] as $room => $data) {
+			foreach (is_array($data['sessions'] ?? null) ? $data['sessions'] : [] as $session => $sessionData) {
+				if (is_array($sessionData)) {
+					$sessions[(string)$room][(string)$session] = $sessionData;
+				}
+			}
+		}
+		return $sessions;
 	}
 
 	/**
@@ -311,6 +376,7 @@ class Client {
 	}
 
 	/**
+	 * @param string $fileName Empty to not tell the homeserver
 	 * @return string Content URI
 	 * @throws MatrixException
 	 */
