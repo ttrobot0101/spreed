@@ -76,10 +76,9 @@ Output format and structure:
 * Use level-2 Markdown headings (`##`).
 * Use the following sections in this exact order:
   1. Purpose
-  2. Place and time
-  3. Participants
-  4. Discussion
-  5. Decisions
+  2. Participants
+  3. Discussion
+  4. Decisions
 * Translate the section names into the language of the source text.
 * Do not keep the section names in English when the source text is in another language.
 
@@ -91,11 +90,6 @@ Rules:
 * Base it on the overall content, even if the purpose is not explicitly stated.
 * Do not introduce information that is not supported by the source.
 * If the overall purpose or context cannot be determined, write: No information.
-
-## Place and time
-
-* Include only explicitly stated information.
-* If no time or place is explicitly stated, write: No information.
 
 ## Participants
 
@@ -217,6 +211,9 @@ PROMPT;
 			new Entry(Config::HIDE_SIGNALING_WARNING, ValueType::BOOL, false, definition: 'Flag that allows to suppress the warning that an HPB should be configured'),
 			new Entry(Config::CHANGELOG, ValueType::BOOL, true, definition: 'Whether the changelog conversation is updated with new features on major releases'),
 			new Entry(Config::SESSION_PING_LIMIT, ValueType::INT, 200, definition: 'Number of sessions the HPB can ping in a single request', rename: 'session-ping-limit'),
+			new Entry(Config::HOSTED_SIGNALING_SERVER_ACCOUNT, ValueType::ARRAY, [], definition: 'Account information of the hosted signaling server', flags: IAppConfig::FLAG_SENSITIVE, rename: 'hosted-signaling-server-account'),
+			new Entry(Config::HOSTED_SIGNALING_SERVER_NONCE, ValueType::STRING, '', definition: 'Temporary nonce while configuring the hosted signaling server', flags: IAppConfig::FLAG_SENSITIVE, rename: 'hosted-signaling-server-nonce'),
+			new Entry(Config::HOSTED_SIGNALING_SERVER_ACCOUNT_ID, ValueType::STRING, '', definition: 'Account identifier of the hosted signaling server', flags: IAppConfig::FLAG_SENSITIVE, rename: 'hosted-signaling-server-account-id'),
 		];
 	}
 
