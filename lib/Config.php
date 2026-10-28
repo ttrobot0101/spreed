@@ -47,6 +47,11 @@ class Config {
 	public const string ALLOWED_GROUPS_TALK = 'allowed_groups';
 	public const string ALLOWED_GROUPS_SIP = 'sip_bridge_groups';
 	public const string ALLOWED_GROUPS_CONVERSATIONS = 'start_conversations';
+	public const string ALLOWED_GROUPS_FEDERATION = 'federation_allowed_groups';
+	public const string FEDERATION_ENABLED = 'federation_enabled';
+	public const string FEDERATION_INCOMING_ENABLED = 'federation_incoming_enabled';
+	public const string FEDERATION_OUTGOING_ENABLED = 'federation_outgoing_enabled';
+	public const string FEDERATION_ONLY_TRUSTED_SERVERS = 'federation_only_trusted_servers';
 	public const string BREAKOUT_ROOMS_ENABLED = 'breakout_rooms';
 	public const string CONVERSATION_SUBFOLDERS = 'conversation_subfolders';
 	public const string CONVERSATIONS_FILES = 'conversations_files';
@@ -77,7 +82,7 @@ class Config {
 	public const string RECORDING_SERVERS = 'recording_servers';
 	public const string FORCE_PASSWORDS = 'force_passwords';
 	public const string BACKGROUNDS_BRANDED_FOR_GUESTS = 'backgrounds_branded_for_guests';
-	public const string BACKGROUNDS_DEFAULT_FOR_USERS = 'backgrounds_default_for_useres';
+	public const string BACKGROUNDS_DEFAULT_FOR_USERS = 'backgrounds_default_for_users';
 	public const string BACKGROUNDS_UPLOAD_USERS = 'backgrounds_upload_users';
 	public const string CREATE_SAMPLES = 'create_samples';
 	public const string MATTERBRIDGE_ENABLED = 'enable_matterbridge';
@@ -106,6 +111,12 @@ class Config {
 	public const string HOSTED_SIGNALING_SERVER_ACCOUNT = 'hosted_signaling_server_account';
 	public const string HOSTED_SIGNALING_SERVER_NONCE = 'hosted_signaling_server_nonce';
 	public const string HOSTED_SIGNALING_SERVER_ACCOUNT_ID = 'hosted_signaling_server_account_id';
+	public const string SIP_BRIDGE_DIALIN_INFO = 'sip_bridge_dialin_info';
+	public const string SIP_BRIDGE_DIALOUT_ANONYMOUS = 'sip_bridge_dialout_anonymous';
+	public const string SIP_BRIDGE_DIALOUT_NUMBER = 'sip_bridge_dialout_number';
+	public const string SIP_BRIDGE_DIALOUT_PREFIX = 'sip_bridge_dialout_prefix';
+	public const string SIP_BRIDGE_SHARED_SECRET = 'sip_bridge_shared_secret';
+	public const string SIP_BRIDGE_DIALOUT = 'sip_bridge_dialout';
 
 	/**
 	 * 1. Call recording, …
@@ -177,8 +188,8 @@ class Config {
 	}
 
 	public function isSIPConfigured(): bool {
-		return $this->getSIPSharedSecret() !== ''
-			&& $this->getDialInInfo() !== '';
+		return $this->appConfig->getAppValueString(self::SIP_BRIDGE_SHARED_SECRET) !== ''
+			&& $this->appConfig->getAppValueString(self::SIP_BRIDGE_DIALIN_INFO) !== '';
 	}
 
 	/**
@@ -186,11 +197,11 @@ class Config {
 	 */
 	public function isFederationEnabled(): bool {
 		// TODO: Set to default true once implementation is complete
-		return $this->config->getAppValue('spreed', 'federation_enabled', 'no') === 'yes';
+		return $this->appConfig->getAppValueBool(self::FEDERATION_ENABLED);
 	}
 
 	public function isFederationEnabledForUserId(IUser $user): bool {
-		$allowedGroups = $this->appConfig->getAppValueArray('federation_allowed_groups', lazy: true);
+		$allowedGroups = $this->appConfig->getAppValueArray(self::ALLOWED_GROUPS_FEDERATION, lazy: true);
 		if (empty($allowedGroups)) {
 			return true;
 		}
@@ -204,15 +215,7 @@ class Config {
 	}
 
 	public function isConversationSubfoldersEnabled(): bool {
-		return $this->appConfig->getAppValueBool(self::CONVERSATION_SUBFOLDERS, true);
-	}
-
-	public function getDialInInfo(): string {
-		return $this->config->getAppValue('spreed', 'sip_bridge_dialin_info');
-	}
-
-	public function getSIPSharedSecret(): string {
-		return $this->config->getAppValue('spreed', 'sip_bridge_shared_secret');
+		return $this->appConfig->getAppValueBool(self::CONVERSATION_SUBFOLDERS);
 	}
 
 	public function canUserEnableSIP(IUser $user): bool {
@@ -222,7 +225,7 @@ class Config {
 
 		$this->canEnableSIP[$user->getUID()] = false;
 
-		$allowedGroups = $this->getSIPGroups();
+		$allowedGroups = $this->appConfig->getAppValueArray(self::ALLOWED_GROUPS_SIP);
 		if (empty($allowedGroups)) {
 			$this->canEnableSIP[$user->getUID()] = true;
 		} else {
@@ -234,15 +237,11 @@ class Config {
 	}
 
 	public function canUserDialOutSIP(IUser $user): bool {
-		if (!$this->isSIPDialOutEnabled()) {
+		if (!$this->appConfig->getAppValueBool(Config::SIP_BRIDGE_DIALOUT)) {
 			return false;
 		}
 
 		return $this->canUserEnableSIP($user);
-	}
-
-	public function isSIPDialOutEnabled(): bool {
-		return $this->config->getAppValue('spreed', 'sip_dialout', 'no') !== 'no';
 	}
 
 	public function getRecordingServers(): array {
