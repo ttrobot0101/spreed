@@ -30,6 +30,7 @@ use OCA\Talk\Service\RecordingService;
 use OCA\Talk\Service\RoomService;
 use OCP\AppFramework\Services\IAppConfig;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\Config\IUserConfig;
 use OCP\Constants;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Files\File;
@@ -38,7 +39,6 @@ use OCP\Files\IMimeTypeDetector;
 use OCP\Files\IRootFolder;
 use OCP\Files\IUserFolder;
 use OCP\Files\NotFoundException;
-use OCP\IConfig;
 use OCP\IUserManager;
 use OCP\L10N\IFactory;
 use OCP\Log\Audit\CriticalActionPerformedEvent;
@@ -49,6 +49,7 @@ use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\IManager as ShareManager;
 use OCP\Share\IShare;
 use OCP\SystemTag\ISystemTagObjectMapper;
+use OCP\TaskProcessing\Exception\NotFoundException as TaskNotFoundException;
 use OCP\TaskProcessing\IManager as ITaskProcessingManager;
 use OCP\TaskProcessing\Task;
 use OCP\TaskProcessing\TaskTypes\TextToText;
@@ -62,8 +63,8 @@ class RecordingServiceTest extends TestCase {
 	protected ParticipantService&MockObject $participantService;
 	protected IRootFolder&MockObject $rootFolder;
 	protected Config&MockObject $config;
-	protected IConfig&MockObject $serverConfig;
 	protected IAppConfig&MockObject $appConfig;
+	protected IUserConfig&MockObject $userConfig;
 	protected IManager&MockObject $notificationManager;
 	protected Manager&MockObject $roomManager;
 	protected ITimeFactory&MockObject $timeFactory;
@@ -90,8 +91,8 @@ class RecordingServiceTest extends TestCase {
 		$this->roomManager = $this->createMock(Manager::class);
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
 		$this->config = $this->createMock(Config::class);
-		$this->serverConfig = $this->createMock(IConfig::class);
 		$this->appConfig = $this->createMock(IAppConfig::class);
+		$this->userConfig = $this->createMock(IUserConfig::class);
 		$this->roomService = $this->createMock(RoomService::class);
 		$this->shareManager = $this->createMock(ShareManager::class);
 		$this->chatManager = $this->createMock(ChatManager::class);
@@ -112,8 +113,8 @@ class RecordingServiceTest extends TestCase {
 			$this->roomManager,
 			$this->timeFactory,
 			$this->config,
-			$this->serverConfig,
 			$this->appConfig,
+			$this->userConfig,
 			$this->roomService,
 			$this->shareManager,
 			$this->chatManager,
@@ -519,5 +520,80 @@ class RecordingServiceTest extends TestCase {
 		$this->shareManager->method('getShareByToken')->with('shareToken')->willReturn($share);
 
 		$this->assertSame('user1', $this->recordingService->getRecordingUploadOwner($roomToken, 'name.ogg'));
+	}
+
+	public static function dataRetryTask(): array {
+		return [
+			['call/transcription/token123', 'call/transcription/token123/retry'],
+			['call/transcription/token123/retry', 'call/transcription/token123/retry'],
+		];
+	}
+
+	#[DataProvider('dataRetryTask')]
+	public function testRetryTask(string $customId, string $expectedCustomId): void {
+		$task = new Task('type', ['input' => 42], 'spreed', 'user1', $customId);
+
+		$this->taskProcessingManager->expects($this->once())
+			->method('scheduleTask')
+			->with($this->callback(fn (Task $retry): bool => $retry->getCustomId() === $expectedCustomId
+				&& $retry->getInput() === ['input' => 42]
+				&& $retry->getUserId() === 'user1'
+				&& $retry->getTaskTypeId() === 'type'));
+
+		$this->assertTrue($this->recordingService->retryTask($task));
+	}
+
+	public static function dataRetryFailedTask(): array {
+		return [
+			'transcript' => ['call/transcription/token123', 'spreed', 'user1', Task::STATUS_FAILED, 'transcript_failed'],
+			'transcript retried' => ['call/transcription/token123/retry', 'spreed', 'user1', Task::STATUS_FAILED, 'transcript_failed'],
+			'summary' => ['call/summary/token123/42/retry', 'spreed', 'user1', Task::STATUS_FAILED, 'summary_failed'],
+			'other token prefix' => ['call/transcription/token1234', 'spreed', 'user1', Task::STATUS_FAILED, null],
+			'other room' => ['call/summary/token456/42', 'spreed', 'user1', Task::STATUS_FAILED, null],
+			'other app' => ['call/transcription/token123', 'assistant', 'user1', Task::STATUS_FAILED, null],
+			'other user' => ['call/transcription/token123', 'spreed', 'user2', Task::STATUS_FAILED, null],
+			'not failed' => ['call/transcription/token123', 'spreed', 'user1', Task::STATUS_SUCCESSFUL, null],
+		];
+	}
+
+	#[DataProvider('dataRetryFailedTask')]
+	public function testRetryFailedTask(string $customId, string $appId, string $userId, int $status, ?string $dismissedSubject): void {
+		$room = $this->createRoom();
+		$participant = $this->createParticipant($room);
+
+		$task = new Task('type', ['input' => 42], $appId, $userId, $customId);
+		$task->setStatus($status);
+		$this->taskProcessingManager->method('getTask')->with(7)->willReturn($task);
+
+		if ($dismissedSubject === null) {
+			$this->taskProcessingManager->expects($this->never())->method('scheduleTask');
+			$this->notificationManager->expects($this->never())->method('markProcessed');
+			$this->expectExceptionMessage('task');
+		} else {
+			$notification = $this->createMock(INotification::class);
+			$notification->method('setApp')->willReturnSelf();
+			$notification->method('setObject')->willReturnSelf();
+			$notification->method('setDateTime')->willReturnSelf();
+			$notification->method('setUser')->willReturnSelf();
+			$notification->expects($this->once())->method('setSubject')->with($dismissedSubject)->willReturnSelf();
+			$this->notificationManager->method('createNotification')->willReturn($notification);
+			$this->timeFactory->method('getDateTime')->willReturn(new \DateTime('@1234'));
+
+			$this->taskProcessingManager->expects($this->once())->method('scheduleTask');
+			$this->notificationManager->expects($this->once())->method('markProcessed')->with($notification);
+		}
+
+		$this->recordingService->retryFailedTask($room, $participant, 7, 1234);
+	}
+
+	public function testRetryFailedTaskNotFound(): void {
+		$room = $this->createRoom();
+		$participant = $this->createParticipant($room);
+
+		$this->taskProcessingManager->method('getTask')->willThrowException(new TaskNotFoundException());
+		$this->taskProcessingManager->expects($this->never())->method('scheduleTask');
+
+		$this->expectExceptionMessage('task');
+		$this->recordingService->retryFailedTask($room, $participant, 7, 1234);
 	}
 }

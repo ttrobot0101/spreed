@@ -25,10 +25,11 @@ use OCP\IGroupManager;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\PreConditionNotMetException;
 use OCP\Security\ISecureRandom;
 use SensitiveParameter;
 
-class Config {
+class Config implements IAppConfig {
 	public const ALLOWED_BACKEND_TIMEOFFSET = 45;
 	public const SIGNALING_INTERNAL = 'internal';
 	public const SIGNALING_EXTERNAL = 'external';
@@ -172,10 +173,11 @@ class Config {
 	 * @return Participant::PRIVACY_*
 	 */
 	public function getUserReadPrivacy(string $userId): int {
-		return match ((int)$this->config->getUserValue(
+		return match ($this->userConfig->getValueInt(
 			$userId,
-			'spreed', UserPreference::READ_STATUS_PRIVACY,
-			(string)Participant::PRIVACY_PUBLIC)) {
+			Application::APP_ID,
+			UserPreference::READ_STATUS_PRIVACY,
+			Participant::PRIVACY_PUBLIC)) {
 			Participant::PRIVACY_PUBLIC => Participant::PRIVACY_PUBLIC,
 			default => Participant::PRIVACY_PRIVATE,
 		};
@@ -185,10 +187,11 @@ class Config {
 	 * @return Participant::PRIVACY_*
 	 */
 	public function getUserTypingPrivacy(string $userId): int {
-		return match ((int)$this->config->getUserValue(
+		return match ($this->userConfig->getValueInt(
 			$userId,
-			'spreed', UserPreference::TYPING_PRIVACY,
-			(string)Participant::PRIVACY_PUBLIC)) {
+			Application::APP_ID,
+			UserPreference::TYPING_PRIVACY,
+			Participant::PRIVACY_PUBLIC)) {
 			Participant::PRIVACY_PUBLIC => Participant::PRIVACY_PUBLIC,
 			default => Participant::PRIVACY_PRIVATE,
 		};
@@ -215,7 +218,7 @@ class Config {
 	}
 
 	public function isFederationEnabledForUserId(IUser $user): bool {
-		$allowedGroups = $this->appConfig->getAppValueArray(self::ALLOWED_GROUPS_FEDERATION, lazy: true);
+		$allowedGroups = $this->appConfig->getAppValueArray(self::ALLOWED_GROUPS_FEDERATION);
 		if (empty($allowedGroups)) {
 			return true;
 		}
@@ -312,20 +315,23 @@ class Config {
 	}
 
 	public function getRecordingFolder(string $userId): string {
-		return $this->config->getUserValue(
+		return $this->userConfig->getValueString(
 			$userId,
-			'spreed',
+			Application::APP_ID,
 			UserPreference::RECORDING_FOLDER,
-			$this->getAttachmentFolder($userId) . '/Recording'
+			$this->getAttachmentFolder($userId) . '/Recording',
 		);
 	}
 
 	public function getLiveTranscriptionTargetLanguageId(?string $userId = null): string {
-		return $this->config->getUserValue(
+		if ($userId === null) {
+			return '';
+		}
+		return $this->userConfig->getvalueString(
 			$userId,
-			'spreed',
+			Application::APP_ID,
 			UserPreference::LIVE_TRANSCRIPTION_TARGET_LANGUAGE_ID,
-			''
+			'',
 		);
 	}
 
@@ -395,7 +401,7 @@ class Config {
 
 	public function getAttachmentFolder(string $userId): string {
 		$defaultAttachmentFolder = $this->appConfig->getAppValueString(self::DEFAULT_ATTACHMENT_FOLDER);
-		return $this->config->getUserValue($userId, 'spreed', UserPreference::ATTACHMENT_FOLDER, $defaultAttachmentFolder);
+		return $this->userConfig->getValueString($userId, Application::APP_ID, UserPreference::ATTACHMENT_FOLDER, $defaultAttachmentFolder);
 	}
 
 	/**
@@ -730,7 +736,7 @@ class Config {
 		if (empty($userId)) {
 			$secret = $this->appConfig->getAppValueString(self::SIGNALING_TICKET_SECRET);
 		} else {
-			$secret = $this->config->getUserValue($userId, 'spreed', 'signaling_ticket_secret');
+			$secret = $this->userConfig->getValueString($userId, Application::APP_ID, self::SIGNALING_TICKET_SECRET);
 		}
 		if (empty($secret)) {
 			// Create secret lazily on first access.
@@ -739,7 +745,7 @@ class Config {
 			if (empty($userId)) {
 				$this->appConfig->setAppValueString(self::SIGNALING_TICKET_SECRET, $secret);
 			} else {
-				$this->config->setUserValue($userId, 'spreed', 'signaling_ticket_secret', $secret);
+				$this->userConfig->setValueString($userId, Application::APP_ID, self::SIGNALING_TICKET_SECRET, $secret);
 			}
 		}
 
@@ -914,7 +920,7 @@ class Config {
 		if (empty($userId)) {
 			$secret = $this->appConfig->getAppValueString(self::SIGNALING_TICKET_SECRET);
 		} else {
-			$secret = $this->config->getUserValue($userId, 'spreed', 'signaling_ticket_secret');
+			$secret = $this->userConfig->getValueString($userId, Application::APP_ID, self::SIGNALING_TICKET_SECRET);
 		}
 		if (empty($secret)) {
 			return false;
@@ -948,10 +954,7 @@ class Config {
 	 */
 	public function getCallsStartWithoutMedia(?string $userId): bool {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue($userId, 'spreed', UserPreference::CALLS_START_WITHOUT_MEDIA);
-			if ($userSetting === 'yes' || $userSetting === 'no') {
-				return $userSetting === 'yes';
-			}
+			return $this->userConfig->getValueBool($userId, Application::APP_ID, UserPreference::CALLS_START_WITHOUT_MEDIA);
 		}
 
 		return $this->appConfig->getAppValueBool(self::CALLS_START_WITHOUT_MEDIA);
@@ -965,8 +968,7 @@ class Config {
 	 */
 	public function getBlurVirtualBackground(?string $userId): bool {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue($userId, 'spreed', UserPreference::BLUR_VIRTUAL_BACKGROUND);
-			return $userSetting === 'yes';
+			return $this->userConfig->getValueBool($userId, Application::APP_ID, UserPreference::BLUR_VIRTUAL_BACKGROUND);
 		}
 		return false;
 	}
@@ -975,27 +977,27 @@ class Config {
 	 * User setting falling back to admin defined app config
 	 *
 	 * @param ?string $userId
-	 * @return UserPreference::CONVERSATION_LIST_STYLE_*
+	 * @return UserPreference::CONVERSATIONS_LIST_STYLE_*
 	 */
 	public function getConversationsListStyle(?string $userId): string {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue(
+			$userSetting = $this->userConfig->getValueString(
 				$userId,
-				'spreed',
+				Application::APP_ID,
 				UserPreference::CONVERSATIONS_LIST_STYLE,
 			);
 
-			if (in_array($userSetting, [UserPreference::CONVERSATION_LIST_STYLE_TWO_LINES, UserPreference::CONVERSATION_LIST_STYLE_COMPACT], true)) {
+			if (in_array($userSetting, [UserPreference::CONVERSATIONS_LIST_STYLE_TWO_LINES, UserPreference::CONVERSATIONS_LIST_STYLE_COMPACT], true)) {
 				return $userSetting;
 			}
 		}
 
 		$appSetting = $this->appConfig->getAppValueString(self::CONVERSATIONS_LIST_STYLE);
-		if (in_array($appSetting, [UserPreference::CONVERSATION_LIST_STYLE_TWO_LINES, UserPreference::CONVERSATION_LIST_STYLE_COMPACT], true)) {
+		if (in_array($appSetting, [UserPreference::CONVERSATIONS_LIST_STYLE_TWO_LINES, UserPreference::CONVERSATIONS_LIST_STYLE_COMPACT], true)) {
 			return $appSetting;
 		}
 
-		return UserPreference::CONVERSATION_LIST_STYLE_TWO_LINES;
+		return UserPreference::CONVERSATIONS_LIST_STYLE_TWO_LINES;
 	}
 
 	/**
@@ -1006,9 +1008,9 @@ class Config {
 	 */
 	public function getChatStyle(?string $userId): string {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue(
+			$userSetting = $this->userConfig->getValueString(
 				$userId,
-				'spreed',
+				Application::APP_ID,
 				UserPreference::CHAT_STYLE,
 			);
 
@@ -1033,9 +1035,9 @@ class Config {
 	 */
 	public function getConversationsSortOrder(?string $userId): string {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue(
+			$userSetting = $this->userConfig->getValueString(
 				$userId,
-				'spreed',
+				Application::APP_ID,
 				UserPreference::CONVERSATIONS_SORT_ORDER,
 			);
 
@@ -1055,9 +1057,9 @@ class Config {
 	 */
 	public function getConversationsGroupMode(?string $userId): string {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue(
+			$userSetting = $this->userConfig->getValueString(
 				$userId,
-				'spreed',
+				Application::APP_ID,
 				UserPreference::CONVERSATIONS_GROUP_MODE,
 			);
 
@@ -1081,9 +1083,9 @@ class Config {
 	 */
 	public function getConversationsUnarchive(?string $userId): string {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue(
+			$userSetting = $this->userConfig->getValueString(
 				$userId,
-				'spreed',
+				Application::APP_ID,
 				UserPreference::CONVERSATIONS_UNARCHIVE,
 			);
 
@@ -1107,9 +1109,9 @@ class Config {
 	 */
 	public function getConversationsTagsShowUnread(?string $userId): string {
 		if ($userId !== null) {
-			$userSetting = $this->config->getUserValue(
+			$userSetting = $this->userConfig->getValueString(
 				$userId,
-				'spreed',
+				Application::APP_ID,
 				UserPreference::CONVERSATIONS_TAGS_SHOW_UNREAD,
 			);
 
@@ -1166,5 +1168,241 @@ class Config {
 
 	public function getPlaySoundsDefaultForGuests(): bool {
 		return $this->appConfig->getAppValueBool(self::GUESTS_PLAY_SOUNDS);
+	}
+
+	/**
+	 * @return array<array-key, string>
+	 */
+	#[\Override]
+	public function getAppKeys(): array {
+		return $this->appConfig->getAppKeys();
+	}
+
+	/**
+	 * @param string $key
+	 * @param bool|null $lazy
+	 * @return bool
+	 */
+	#[\Override]
+	public function hasAppKey(string $key, ?bool $lazy = false): bool {
+		return $this->appConfig->hasAppKey($key);
+	}
+
+	/**
+	 * @param string $key
+	 * @param bool|null $lazy
+	 * @return bool
+	 */
+	#[\Override]
+	public function isSensitive(string $key, ?bool $lazy = false): bool {
+		return $this->appConfig->isSensitive($key, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @return bool
+	 */
+	#[\Override]
+	public function isLazy(string $key): bool {
+		return $this->appConfig->isLazy($key);
+	}
+
+	/**
+	 * @param string $key
+	 * @param bool $filtered
+	 * @return array<string, array<array-key, mixed>|scalar>
+	 */
+	#[\Override]
+	public function getAllAppValues(string $key = '', bool $filtered = false): array {
+		return $this->appConfig->getAllAppValues($key, $filtered);
+	}
+
+	/**
+	 * @param string $key
+	 * @param string $value
+	 * @return void
+	 * @throws \Exception
+	 */
+	#[\Override]
+	#[\Deprecated(message: 'Always use the typed setters')]
+	public function setAppValue(string $key, string $value): void {
+		throw new \Exception('Deprecated');
+	}
+
+	/**
+	 * @param string $key
+	 * @param string $value
+	 * @param bool $lazy
+	 * @param bool $sensitive
+	 * @return bool
+	 */
+	#[\Override]
+	public function setAppValueString(string $key, string $value, bool $lazy = false, bool $sensitive = false): bool {
+		return $this->appConfig->setAppValueString($key, $value, $lazy, $sensitive);
+	}
+
+	/**
+	 * @param string $key
+	 * @param int $value
+	 * @param bool $lazy
+	 * @param bool $sensitive
+	 * @return bool
+	 */
+	#[\Override]
+	public function setAppValueInt(string $key, int $value, bool $lazy = false, bool $sensitive = false): bool {
+		return $this->appConfig->setAppValueInt($key, $value, $lazy, $sensitive);
+	}
+
+	/**
+	 * @param string $key
+	 * @param float $value
+	 * @param bool $lazy
+	 * @param bool $sensitive
+	 * @return bool
+	 */
+	#[\Override]
+	public function setAppValueFloat(string $key, float $value, bool $lazy = false, bool $sensitive = false): bool {
+		return	$this->appConfig->setAppValueFloat($key, $value, $lazy, $sensitive);
+	}
+
+	/**
+	 * @param string $key
+	 * @param bool $value
+	 * @param bool $lazy
+	 * @return bool
+	 */
+	#[\Override]
+	public function setAppValueBool(string $key, bool $value, bool $lazy = false): bool {
+		return $this->appConfig->setAppValueBool($key, $value, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @param array $value
+	 * @param bool $lazy
+	 * @param bool $sensitive
+	 * @return bool
+	 */
+	#[\Override]
+	public function setAppValueArray(string $key, array $value, bool $lazy = false, bool $sensitive = false): bool {
+		return $this->appConfig->setAppValueArray($key, $value, $lazy, $sensitive);
+	}
+
+	/**
+	 * @param string $key
+	 * @param string $default
+	 * @return string
+	 * @throws \Exception
+	 */
+	#[\Override]
+	#[\Deprecated(message: 'Always use the typed getters')]
+	public function getAppValue(string $key, string $default = ''): string {
+		throw new \Exception('Deprecated');
+	}
+
+	/**
+	 * @param string $key
+	 * @param string $default
+	 * @param bool $lazy
+	 * @return string
+	 */
+	#[\Override]
+	public function getAppValueString(string $key, string $default = '', bool $lazy = false): string {
+		return $this->appConfig->getAppValueString($key, $default, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @param int $default
+	 * @param bool $lazy
+	 * @return int
+	 */
+	#[\Override]
+	public function getAppValueInt(string $key, int $default = 0, bool $lazy = false): int {
+		return $this->appConfig->getAppValueInt($key, $default, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @param float $default
+	 * @param bool $lazy
+	 * @return float
+	 */
+	#[\Override]
+	public function getAppValueFloat(string $key, float $default = 0, bool $lazy = false): float {
+		return $this->appConfig->getAppValueFloat($key, $default, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @param bool $default
+	 * @param bool $lazy
+	 * @return bool
+	 */
+	#[\Override]
+	public function getAppValueBool(string $key, bool $default = false, bool $lazy = false): bool {
+		return $this->appConfig->getAppValueBool($key, $default, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @param array $default
+	 * @param bool $lazy
+	 * @return array
+	 */
+	#[\Override]
+	public function getAppValueArray(string $key, array $default = [], bool $lazy = false): array {
+		return $this->appConfig->getAppValueArray($key, $default, $lazy);
+	}
+
+	/**
+	 * @param string $key
+	 * @return void
+	 */
+	#[\Override]
+	public function deleteAppValue(string $key): void {
+		$this->appConfig->deleteAppValue($key);
+	}
+
+	/**
+	 * @return void
+	 */
+	#[\Override]
+	public function deleteAppValues(): void {
+		$this->appConfig->deleteAppValues();
+	}
+
+	/**
+	 * @param string $userId
+	 * @param string $key
+	 * @param string $value
+	 * @param string|null $preCondition
+	 * @return void
+	 * @throws PreConditionNotMetException
+	 */
+	#[\Override]
+	public function setUserValue(string $userId, string $key, string $value, ?string $preCondition = null): void {
+		$this->appConfig->setUserValue($userId, $key, $value, $preCondition);
+	}
+
+	/**
+	 * @param string $userId
+	 * @param string $key
+	 * @param mixed $default
+	 * @return string
+	 */
+	#[\Override]
+	public function getUserValue(string $userId, string $key, string $default = ''): string {
+		return $this->appConfig->getUserValue($userId, $key, $default);
+	}
+
+	/**
+	 * @param string $userId
+	 * @param string $key
+	 * @return void
+	 */
+	#[\Override]
+	public function deleteUserValue(string $userId, string $key): void {
+		$this->appConfig->deleteUserValue($userId, $key);
 	}
 }
