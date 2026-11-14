@@ -487,6 +487,7 @@ class ChatManagerTest extends TestCase {
 			'has_unread_thread_directs' => false,
 			'hidden_pinned_id' => 0,
 			'has_scheduled_messages' => 0,
+			'mute_until' => 0,
 		]);
 		$chat = $this->createMock(Room::class);
 		$chat->expects($this->any())
@@ -570,6 +571,7 @@ class ChatManagerTest extends TestCase {
 			'has_unread_thread_directs' => false,
 			'hidden_pinned_id' => 0,
 			'has_scheduled_messages' => 0,
+			'mute_until' => 0,
 		]);
 		$chat = $this->createMock(Room::class);
 		$chat->expects($this->any())
@@ -663,6 +665,7 @@ class ChatManagerTest extends TestCase {
 			'has_unread_thread_directs' => false,
 			'hidden_pinned_id' => 0,
 			'has_scheduled_messages' => 0,
+			'mute_until' => 0,
 		]);
 		$chat = $this->createMock(Room::class);
 		$chat->expects($this->any())
@@ -782,6 +785,7 @@ class ChatManagerTest extends TestCase {
 			'has_unread_thread_directs' => false,
 			'hidden_pinned_id' => 0,
 			'has_scheduled_messages' => 0,
+			'mute_until' => 0,
 		]);
 		$chat = $this->createMock(Room::class);
 		$chat->expects($this->any())
@@ -932,6 +936,31 @@ class ChatManagerTest extends TestCase {
 	public function testSearchIsPartOfConversationNameOrAtAll(string $search, string $roomDisplayName, bool $expected): void {
 		$actual = self::invokePrivate($this->chatManager, 'searchIsPartOfConversationNameOrAtAll', [$search, $roomDisplayName]);
 		$this->assertEquals($expected, $actual);
+	}
+
+	public static function dataGetActorParticipantTypeMetaData(): array {
+		return [
+			'owner' => [Participant::OWNER, 'alice', [Message::METADATA_ACTOR_PARTICIPANT_TYPE => Participant::OWNER]],
+			'user' => [Participant::USER, 'alice', [Message::METADATA_ACTOR_PARTICIPANT_TYPE => Participant::USER]],
+			'no participant' => [null, 'alice', []],
+			'participant is not the actor' => [Participant::OWNER, 'bob', []],
+		];
+	}
+
+	#[DataProvider('dataGetActorParticipantTypeMetaData')]
+	public function testGetActorParticipantTypeMetaData(?int $participantType, string $actorId, array $expected): void {
+		$participant = null;
+		if ($participantType !== null) {
+			$attendee = Attendee::fromRow([
+				'actor_type' => Attendee::ACTOR_USERS,
+				'actor_id' => 'alice',
+				'participant_type' => $participantType,
+			]);
+			$participant = new Participant($this->createMock(Room::class), $attendee, null);
+		}
+
+		$actual = self::invokePrivate($this->chatManager, 'getActorParticipantTypeMetaData', [$participant, Attendee::ACTOR_USERS, $actorId]);
+		$this->assertSame($expected, $actual);
 	}
 
 	public static function dataAddConversationNotify(): array {
