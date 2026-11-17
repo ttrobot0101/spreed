@@ -142,6 +142,7 @@ class Capabilities implements IPublicCapability {
 		'promote-demote-owner',
 		'matrix-rooms',
 		'mute-conversations',
+		'federation-signaling-auth',
 	];
 
 	public const CONDITIONAL_FEATURES = [
@@ -181,6 +182,7 @@ class Capabilities implements IPublicCapability {
 		'classified-conversations',
 		'announcement-preset',
 		'matrix-rooms',
+		'federation-signaling-auth',
 	];
 
 	public const LOCAL_CONFIGS = [
@@ -188,6 +190,8 @@ class Capabilities implements IPublicCapability {
 			'allowed',
 			'folder',
 			'conversation-subfolders',
+			'default-allow-edit',
+			'default-original-quality',
 		],
 		'call' => [
 			'predefined-backgrounds',
@@ -287,6 +291,8 @@ class Capabilities implements IPublicCapability {
 					'allowed' => $user instanceof IUser && $user->getBackendClassName() !== UserBackend::class,
 					// 'folder' => string,
 					'conversation-subfolders' => $this->talkConfig->isConversationSubfoldersEnabled(),
+					'default-allow-edit' => $this->appConfig->getAppValueBool(Config::DEFAULT_ATTACHMENTS_ALLOW_EDIT),
+					'default-original-quality' => $this->appConfig->getAppValueBool(Config::DEFAULT_ATTACHMENTS_ORIGINAL_QUALITY),
 				],
 				'call' => [
 					'enabled' => $this->appConfig->getAppValueInt(Config::ALLOWED_START_CALLS) !== Room::START_CALL_NOONE,

@@ -253,7 +253,9 @@
                                 "type": "object",
                                 "required": [
                                     "allowed",
-                                    "conversation-subfolders"
+                                    "conversation-subfolders",
+                                    "default-allow-edit",
+                                    "default-original-quality"
                                 ],
                                 "properties": {
                                     "allowed": {
@@ -267,6 +269,14 @@
                                     "conversation-subfolders": {
                                         "type": "boolean",
                                         "description": "Whether per-conversation subfolders are used for attachments"
+                                    },
+                                    "default-allow-edit": {
+                                        "type": "boolean",
+                                        "description": "Whether shared files are editable by default"
+                                    },
+                                    "default-original-quality": {
+                                        "type": "boolean",
+                                        "description": "Whether images are uploaded in original quality by default"
                                     }
                                 }
                             },
@@ -2548,6 +2558,18 @@
                     "nextcloudServer": {
                         "type": "string",
                         "description": "URL of the Nextcloud server for federation"
+                    },
+                    "joinAuthParams": {
+                        "type": "object",
+                        "description": "Authentication parameters for the federation join request",
+                        "required": [
+                            "token"
+                        ],
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        }
                     },
                     "helloAuthParams": {
                         "type": "object",

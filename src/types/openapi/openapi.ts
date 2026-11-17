@@ -2393,6 +2393,10 @@ export type components = {
                     folder?: string;
                     /** @description Whether per-conversation subfolders are used for attachments */
                     "conversation-subfolders": boolean;
+                    /** @description Whether shared files are editable by default */
+                    "default-allow-edit": boolean;
+                    /** @description Whether images are uploaded in original quality by default */
+                    "default-original-quality": boolean;
                 };
                 call: {
                     /** @description Whether calls are enabled */
@@ -3519,6 +3523,10 @@ export type components = {
             server: string;
             /** @description URL of the Nextcloud server for federation */
             nextcloudServer: string;
+            /** @description Authentication parameters for the federation join request */
+            joinAuthParams?: {
+                token: string;
+            };
             /** @description Authentication parameters for the hello request */
             helloAuthParams: {
                 token: string;

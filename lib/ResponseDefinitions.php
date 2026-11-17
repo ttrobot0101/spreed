@@ -726,6 +726,10 @@ namespace OCA\Talk;
  *     server: string,
  *     // URL of the Nextcloud server for federation
  *     nextcloudServer: string,
+ *     // Authentication parameters for the federation join request
+ *     joinAuthParams?: array{
+ *         token: string,
+ *     },
  *     // Authentication parameters for the hello request
  *     helloAuthParams: array{
  *         token: string,
@@ -809,6 +813,10 @@ namespace OCA\Talk;
  *             folder?: string,
  *             // Whether per-conversation subfolders are used for attachments
  *             'conversation-subfolders': bool,
+ *             // Whether shared files are editable by default
+ *             'default-allow-edit': bool,
+ *             // Whether images are uploaded in original quality by default
+ *             'default-original-quality': bool,
  *         },
  *         call: array{
  *             // Whether calls are enabled

@@ -240,8 +240,13 @@
 * `config => conversations => unarchive` (local) - User selected mode when archived conversations are unarchived automatically (`never`, `mention` or `always`)
 * `config => conversations => tags-show-unread` (local) - User selected mode when unread conversations are shown in collapsed conversation tags (`never`, `mention` or `always`)
 
+## 25.0.9
+* `config => attachments => default-allow-edit` (local) - Whether shared files are editable by default, until the user picks a choice in the upload editor
+* `config => attachments => default-original-quality` (local) - Whether images are uploaded in original quality by default, until the user picks a choice in the upload editor
+
 ## 26
 * `config => matrix => enabled` (local) - Whether the Matrix integration is enabled, so users can manage their linked Matrix account
 * `config => chat => mobile-preload-chat` (local) - Whether mobile clients should preload the chat messages of conversations
 * `matrix-rooms` (local) - Whether Matrix accounts can be linked, see [Matrix integration](matrix.md)
 * `mute-conversations` - Whether conversations can be muted for a given time
+* `federation-signaling-auth` (local) - Whether federated signaling is sending the join auth params to the clients and the HPB should not allow joining without

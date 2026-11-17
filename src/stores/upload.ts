@@ -75,6 +75,28 @@ type PerformSharePayload = {
 	allowUpdate?: boolean
 }
 
+/**
+ * Get the share permission choice: browser storage, then admin config, then view-only
+ */
+function getAllowEdit(): boolean {
+	const storedValue = BrowserStorage.getItem('allowEdit')
+	if (storedValue !== null) {
+		return storedValue === 'true'
+	}
+	return getTalkConfig('local', 'attachments', 'default-allow-edit') ?? false
+}
+
+/**
+ * Get the image quality choice: browser storage, then admin config, then standard quality
+ */
+function getOriginalQuality(): boolean {
+	const storedValue = BrowserStorage.getItem('originalQuality')
+	if (storedValue !== null) {
+		return storedValue === 'true'
+	}
+	return getTalkConfig('local', 'attachments', 'default-original-quality') ?? false
+}
+
 export const useUploadStore = defineStore('upload', () => {
 	const actorStore = useActorStore()
 	const chatExtrasStore = useChatExtrasStore()
@@ -92,27 +114,27 @@ export const useUploadStore = defineStore('upload', () => {
 	/**
 	 * The user's choices for uploads, kept in browser storage across uploads
 	 */
-	const allowUpdate = ref(BrowserStorage.getItem('allowUpdate') === 'true')
-	const skipCompression = ref(BrowserStorage.getItem('skipCompression') === 'true')
+	const allowEdit = ref(getAllowEdit())
+	const originalQuality = ref(getOriginalQuality())
 
 	/**
 	 * Update the share permission choice and keep it in storage
 	 *
-	 * @param value new 'allowUpdate' value
+	 * @param value new 'allowEdit' value
 	 */
-	function updateAllowUpdate(value: boolean) {
-		allowUpdate.value = value
-		BrowserStorage.setItem('allowUpdate', value.toString())
+	function updateAllowEdit(value: boolean) {
+		allowEdit.value = value
+		BrowserStorage.setItem('allowEdit', value.toString())
 	}
 
 	/**
 	 * Update the image quality choice and keep it in storage
 	 *
-	 * @param value new 'skipCompression' value
+	 * @param value new 'originalQuality' value
 	 */
-	function updateSkipCompression(value: boolean) {
-		skipCompression.value = value
-		BrowserStorage.setItem('skipCompression', value.toString())
+	function updateOriginalQuality(value: boolean) {
+		originalQuality.value = value
+		BrowserStorage.setItem('originalQuality', value.toString())
 	}
 
 	/**
@@ -899,11 +921,11 @@ export const useUploadStore = defineStore('upload', () => {
 		currentUploadId,
 		localUrls,
 		compressedFileSizes,
-		allowUpdate,
-		skipCompression,
+		allowEdit,
+		originalQuality,
 
-		updateAllowUpdate,
-		updateSkipCompression,
+		updateAllowEdit,
+		updateOriginalQuality,
 
 		getUploadsArray,
 		getInitialisedUploads,
